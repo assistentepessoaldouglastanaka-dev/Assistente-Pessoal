@@ -114,6 +114,8 @@ Responda APENAS com JSON válido: {"resposta": "texto falado", "acao": null ou o
 const PREFIXO: Record<string, string> = {
   GastoIntent: 'gastei ', AlarmeIntent: 'me acorda ', LembreteIntent: 'me lembra de ', EventoIntent: 'marca na agenda ',
   TarefaIntent: 'cria uma tarefa ', PerguntaIntent: '', ResumoIntent: 'faça um resumo do meu dia de hoje',
+  FinancasIntent: 'como estão minhas finanças este mês? Inclua o saldo previsto e as contas a vencer',
+  TarefasIntent: 'quais são minhas tarefas pendentes? Diga as mais urgentes',
 };
 
 // ---------- Conferência da assinatura da Amazon ----------
@@ -197,8 +199,12 @@ async function atender(corpo: any, inicio: number): Promise<Response> {
   if (['AMAZON.StopIntent', 'AMAZON.CancelIntent', 'AMAZON.NavigateHomeIntent'].includes(intent)) return falar('Até logo, senhor.');
   if (intent === 'AMAZON.FallbackIntent') return falar('Não entendi, senhor. Pode repetir de outro jeito?', true);
 
-  const frase = String(corpo.request.intent?.slots?.frase?.value ?? '').trim();
-  const pergunta = (PREFIXO[intent] ?? '') + frase;
+  const slots = corpo.request.intent?.slots ?? {};
+  const frase = String(slots.frase?.value ?? '').trim();
+  // Agenda: a Alexa já converte "amanhã", "sexta", "dia 20" em data (AAAA-MM-DD)
+  const pergunta = intent === 'AgendaIntent'
+    ? `o que tenho na agenda ${slots.dia?.value ? 'no dia ' + slots.dia.value : 'hoje e amanhã'}?`
+    : (PREFIXO[intent] ?? '') + frase;
   if (!pergunta.trim()) return falar('Pode repetir, senhor?', true);
 
   const userId = Deno.env.get('ALEXA_USER_ID')!.trim();
