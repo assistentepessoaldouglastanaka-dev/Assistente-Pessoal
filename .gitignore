@@ -17,3 +17,6 @@ supabase/.branches/
 node_modules/
 .env
 .env.*
+
+# APK gerado
+*.apk
