@@ -4,9 +4,11 @@
 // recebem a mudança na hora pela sincronização.
 // Secrets: ALEXA_SKILL_ID (ID da skill), ALEXA_USER_ID (seu usuário no Supabase), CF_ACCOUNT_ID, CF_API_TOKEN,
 // e GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET (já existentes) para criar eventos no Google Agenda.
-// Segurança: cada pedido tem a assinatura digital da Amazon conferida (certificado + SHA-256) antes de qualquer coisa.
+// Segurança: cada pedido tem a assinatura digital da Amazon conferida (certificado + SHA-256) antes de qualquer coisa,
+// seguindo as regras oficiais da Amazon para skills hospedadas fora dela.
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import verificarAlexa from 'npm:alexa-verifier@4.0.0';
+import 'npm:reflect-metadata@0.2.2';
+import { X509Certificate, SubjectAlternativeNameExtension } from 'npm:@peculiar/x509@2.2.0';
 
 const TZ = 'America/Sao_Paulo';
 const MODELO = Deno.env.get('CF_MODELO') ?? '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
@@ -113,6 +115,38 @@ const PREFIXO: Record<string, string> = {
   GastoIntent: 'gastei ', AlarmeIntent: 'me acorda ', LembreteIntent: 'me lembra de ', EventoIntent: 'marca na agenda ',
   TarefaIntent: 'cria uma tarefa ', PerguntaIntent: '', ResumoIntent: 'faça um resumo do meu dia de hoje',
 };
+
+// ---------- Conferência da assinatura da Amazon ----------
+// 1) o certificado vem do endereço oficial (https://s3.amazonaws.com/echo.api/...);
+// 2) está na validade e foi emitido para echo-api.amazon.com;
+// 3) a assinatura SHA-256 do corpo (cabeçalho Signature-256) confere com a chave do certificado;
+// 4) o pedido tem no máximo 150 s.
+const chavesAlexa = new Map<string, { chave: CryptoKey; ate: number }>();
+async function verificarAlexa(urlCert: string, assinatura: string, corpo: string) {
+  if (!urlCert || !assinatura) throw new Error('pedido sem assinatura');
+  const u = new URL(urlCert);   // já resolve "../" no caminho
+  if (u.protocol !== 'https:' || u.hostname.toLowerCase() !== 's3.amazonaws.com' || !u.pathname.startsWith('/echo.api/') || (u.port && u.port !== '443'))
+    throw new Error('endereço do certificado não é da Amazon: ' + urlCert);
+  let guardada = chavesAlexa.get(u.href);
+  if (!guardada || Date.now() > guardada.ate) {
+    const pem = await (await fetch(u.href, { signal: comLimite(2500) })).text();
+    const primeiro = pem.match(/-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/)?.[0];
+    if (!primeiro) throw new Error('certificado ilegível');
+    const cert = new X509Certificate(primeiro);
+    const agora = Date.now();
+    if (agora < cert.notBefore.getTime() || agora > cert.notAfter.getTime()) throw new Error('certificado fora da validade');
+    const nomes = (cert.getExtension(SubjectAlternativeNameExtension)?.names?.toJSON() ?? []) as { value: string }[];
+    if (!nomes.some((n) => n.value === 'echo-api.amazon.com')) throw new Error('certificado não é de echo-api.amazon.com');
+    const chave = await crypto.subtle.importKey('spki', cert.publicKey.rawData, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
+    guardada = { chave, ate: cert.notAfter.getTime() };
+    chavesAlexa.set(u.href, guardada);
+  }
+  const bytes = Uint8Array.from(atob(assinatura), (ch) => ch.charCodeAt(0));
+  const valida = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', guardada.chave, bytes, new TextEncoder().encode(corpo));
+  if (!valida) throw new Error('assinatura não confere');
+  const quando = Date.parse(JSON.parse(corpo)?.request?.timestamp ?? '');
+  if (!quando || Math.abs(Date.now() - quando) > 150000) throw new Error('pedido expirado');
+}
 
 // A Alexa espera no máximo 8 s: o pedido inteiro tem um orçamento de 7,2 s
 const ORCAMENTO = 7200;
