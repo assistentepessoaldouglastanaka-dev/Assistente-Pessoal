@@ -1,6 +1,7 @@
 # Backups com dados pessoais — nunca versionar
 *.json
 !.claude/launch.json
+!vercel.json
 !assistente/**/*.json
 controle-de-gastos.html
 
