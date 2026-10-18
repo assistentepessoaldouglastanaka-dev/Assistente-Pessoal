@@ -4,7 +4,9 @@
 // recebem a mudança na hora pela sincronização.
 // Secrets: ALEXA_SKILL_ID (ID da skill), ALEXA_USER_ID (seu usuário no Supabase), CF_ACCOUNT_ID, CF_API_TOKEN,
 // e GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET (já existentes) para criar eventos no Google Agenda.
+// Segurança: cada pedido tem a assinatura digital da Amazon conferida (certificado + SHA-256) antes de qualquer coisa.
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import verificarAlexa from 'npm:alexa-verifier@4.0.0';
 
 const TZ = 'America/Sao_Paulo';
 const MODELO = Deno.env.get('CF_MODELO') ?? '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
@@ -27,6 +29,7 @@ const hojeISO = () => { const p = partes(); return `${p.year}-${p.month}-${p.day
 const agoraHM = () => { const p = partes(); return `${p.hour === '24' ? '00' : p.hour}:${p.minute}`; };
 const somaDias = (iso: string, n: number) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const diaSemana = (iso: string) => new Date(iso + 'T12:00:00Z').getUTCDay();
+const comLimite = (ms: number) => { const c = new AbortController(); setTimeout(() => c.abort(), ms); return c.signal; };
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
 // Mesma lógica de recorrência da agenda do app
@@ -106,14 +109,38 @@ const PREFIXO: Record<string, string> = {
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response('ok');
-  // deno-lint-ignore no-explicit-any
-  const corpo: any = await req.json().catch(() => null);
-  if (!corpo?.request) return new Response('requisição inválida', { status: 400 });
+  const bruto = await req.text();
 
-  // Só aceita a sua skill, e só pedidos recentes (até 150 s)
+  // 1) O pedido veio mesmo da Alexa? (assinatura digital da Amazon; também recusa pedidos com mais de 150 s)
+  try {
+    await verificarAlexa(req.headers.get('SignatureCertChainUrl') ?? '', req.headers.get('Signature-256') ?? '', bruto);
+  } catch (e) {
+    console.warn('Pedido recusado (assinatura da Alexa inválida):', String(e));
+    return new Response('assinatura inválida', { status: 400 });
+  }
+  // deno-lint-ignore no-explicit-any
+  let corpo: any;
+  try { corpo = JSON.parse(bruto); } catch { return new Response('requisição inválida', { status: 400 }); }
+
+  try {
+    return await atender(corpo);
+  } catch (e) {
+    console.error('Erro na skill:', e);
+    return falar('Tive um problema interno, senhor. Os detalhes ficaram no registro da função.');
+  }
+});
+
+// deno-lint-ignore no-explicit-any
+async function atender(corpo: any): Promise<Response> {
+  // 2) É a sua skill? (a assinatura já garantiu que veio da Alexa, então dá para explicar o problema em voz)
   const skill = corpo.session?.application?.applicationId ?? corpo.context?.System?.application?.applicationId;
-  if (skill !== Deno.env.get('ALEXA_SKILL_ID')) return new Response('skill não autorizada', { status: 403 });
-  if (Math.abs(Date.now() - Date.parse(corpo.request.timestamp)) > 150000) return new Response('pedido expirado', { status: 400 });
+  const esperado = Deno.env.get('ALEXA_SKILL_ID');
+  if (!esperado) return falar('Falta configurar o segredo ALEXA SKILL ID no Supabase.');
+  if (skill !== esperado.trim()) {
+    console.warn(`ID da skill diferente. Recebido: ${skill} | configurado: ${esperado}`);
+    return falar('O ID desta skill não confere com o segredo ALEXA SKILL ID configurado no Supabase.');
+  }
+  if (!Deno.env.get('ALEXA_USER_ID')) return falar('Falta configurar o segredo ALEXA USER ID no Supabase.');
 
   const tipo = corpo.request.type;
   if (tipo === 'LaunchRequest') return falar('J.A.R.V.I.S. online. Em que posso ajudar, senhor?', true);
@@ -127,11 +154,13 @@ Deno.serve(async (req) => {
   const pergunta = (PREFIXO[intent] ?? '') + frase;
   if (!pergunta.trim()) return falar('Pode repetir, senhor?', true);
 
-  const userId = Deno.env.get('ALEXA_USER_ID')!;
+  const userId = Deno.env.get('ALEXA_USER_ID')!.trim();
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
 
   // Dados do usuário (mesma tabela que o app sincroniza)
-  const { data: linhas } = await admin.from('itens').select('colecao,id,dados').eq('user_id', userId).eq('excluido', false);
+  const { data: linhas, error: erroBanco } = await admin.from('itens').select('colecao,id,dados').eq('user_id', userId).eq('excluido', false);
+  if (erroBanco) { console.error('Banco:', erroBanco); return falar('Não consegui ler seus dados, senhor. Confira o segredo ALEXA USER ID.'); }
+  if (!linhas?.length) return falar('Não encontrei dados para este usuário, senhor. Confira se o ALEXA USER ID é o mesmo da sua conta no app.');
   // deno-lint-ignore no-explicit-any
   const c: Record<string, any[]> = {}, unicos: Record<string, any> = {};
   for (const l of linhas ?? []) {
@@ -147,7 +176,7 @@ Deno.serve(async (req) => {
   if (token) {
     const h = hojeISO();
     const p = new URLSearchParams({ singleEvents: 'true', orderBy: 'startTime', timeMin: `${h}T00:00:00-03:00`, timeMax: `${somaDias(h, 2)}T00:00:00-03:00` });
-    const r = await fetch(`${CAL}?${p}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => null);
+    const r = await fetch(`${CAL}?${p}`, { headers: { Authorization: `Bearer ${token}` }, signal: comLimite(2500) }).catch(() => null);
     if (r?.ok) eventosGoogle = ((await r.json()).items ?? []).filter((e: { status: string }) => e.status !== 'cancelled').map((e: { summary?: string; start: { date?: string; dateTime?: string } }) => ({
       titulo: e.summary ?? '(sem título)',
       data: e.start.date ?? (e.start.dateTime ? new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(new Date(e.start.dateTime)) : ''),
@@ -157,21 +186,25 @@ Deno.serve(async (req) => {
 
   // IA gratuita da Cloudflare
   const conta = Deno.env.get('CF_ACCOUNT_ID'), cfToken = Deno.env.get('CF_API_TOKEN');
-  if (!conta || !cfToken) return falar('Minha inteligência na nuvem ainda não foi configurada, senhor.');
+  if (!conta || !cfToken) return falar('Minha inteligência na nuvem ainda não foi configurada, senhor. Faltam os segredos da Cloudflare.');
   const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${conta}/ai/run/${MODELO}`, {
     method: 'POST', headers: { Authorization: `Bearer ${cfToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ max_tokens: 250, temperature: 0.3, messages: [
       { role: 'system', content: SISTEMA + '\n\nCONTEXTO:\n' + montarContexto(c, unicos, eventosGoogle) },
       { role: 'user', content: pergunta.slice(0, 500) },
     ] }),
+    signal: comLimite(5500),
   }).catch(() => null);
   const dados = await r?.json().catch(() => null);
-  if (!r?.ok || !dados?.success) return falar('Não consegui pensar nisso agora, senhor. Tente de novo em instantes.');
-  const bruto = dados.result?.response;
+  if (!r?.ok || !dados?.success) {
+    console.error('Cloudflare:', r?.status, JSON.stringify(dados?.errors ?? dados ?? 'sem resposta (tempo esgotado)'));
+    return falar(r ? 'Não consegui pensar nisso agora, senhor. Confira o token da Cloudflare.' : 'Demorei demais para pensar, senhor. Tente de novo.');
+  }
+  const resposta_ia = dados.result?.response;
   // deno-lint-ignore no-explicit-any
   let saida: any = {};
-  if (bruto && typeof bruto === 'object') saida = bruto;
-  else { const t = String(bruto ?? ''); try { saida = JSON.parse(t.match(/\{[\s\S]*\}/)?.[0] ?? '{}'); } catch { saida = { resposta: t }; } }
+  if (resposta_ia && typeof resposta_ia === 'object') saida = resposta_ia;
+  else { const t = String(resposta_ia ?? ''); try { saida = JSON.parse(t.match(/\{[\s\S]*\}/)?.[0] ?? '{}'); } catch { saida = { resposta: t }; } }
 
   // Executa a ação (validada) gravando no banco do usuário
   const a = saida.acao;
@@ -205,4 +238,4 @@ Deno.serve(async (req) => {
   }
   const resposta = String(saida.resposta ?? '').trim() || 'Feito, senhor.';
   return falar(falhou ? 'Não consegui salvar no Google Agenda agora, senhor.' : resposta);
-});
+}
