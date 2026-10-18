@@ -4,4 +4,5 @@
     <string name="title_activity_main">Assistente</string>
     <string name="package_name">br.com.assistentepessoal</string>
     <string name="custom_url_scheme">br.com.assistentepessoal</string>
+    <string name="widget_descricao">Jarvis: toque para falar e veja o resumo do seu dia</string>
 </resources>

@@ -207,7 +207,7 @@ function render() {
   $('#barra').classList.toggle('sempre', m.id === 'inicio');
   $('#conteudo').innerHTML = m.render();
   document.title = m.nome + ' · Assistente';
-  if (typeof Nativo !== 'undefined') Nativo.agendarDepois();
+  if (typeof Nativo !== 'undefined') { Nativo.agendarDepois(); Nativo.atualizarWidget(); }
 }
 
 function ir(id) { if (atual !== id) location.hash = id; }
