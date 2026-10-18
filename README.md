@@ -57,3 +57,20 @@ Comandos comuns (gastos, tarefas, eventos, alarmes, lembretes e consultas) são 
 Perguntas livres vão para a Edge Function `jarvis`, que usa a IA gratuita da Cloudflare (Workers AI, 10.000 neurons/dia).
 
 Secrets da função `jarvis` no Supabase: `CF_ACCOUNT_ID`, `CF_API_TOKEN` (permissão Workers AI) e, opcional, `CF_MODELO`.
+
+## Widget do Jarvis (Android)
+
+Widget para a tela inicial: toque no reator para falar com o Jarvis (abre o app já ouvindo) e veja o
+próximo compromisso, as tarefas pendentes e o saldo do mês. O app grava o resumo (plugin Preferences)
+e o widget atualiza ao sair do app e a cada 30 minutos.
+
+## Skill da Alexa
+
+"Alexa, pede ao meu jarvis gastei cinquenta reais no mercado" — a Edge Function `alexa` usa a IA gratuita
+da Cloudflare com um resumo dos seus dados e grava a ação no banco (aparece na hora nos aparelhos).
+
+1. developer.amazon.com → Alexa → Create Skill: idioma Portuguese (BR), modelo Custom, hosting "Provision your own".
+2. JSON Editor: cole `alexa/modelo-interacao.json`. Build Model.
+3. Endpoint HTTPS: `https://dcbjrjpbvyjavgwuchuf.supabase.co/functions/v1/alexa` (certificado de autoridade confiável).
+4. Secrets no Supabase: `ALEXA_SKILL_ID` (ID da skill) e `ALEXA_USER_ID` (seu usuário em Authentication → Users).
+5. Crie a função `alexa` no painel (Verify JWT desligado). Na aba Test, ative "Development".

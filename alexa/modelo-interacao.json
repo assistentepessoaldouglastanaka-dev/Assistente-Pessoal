@@ -1,0 +1,53 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "meu jarvis",
+      "intents": [
+        { "name": "AMAZON.CancelIntent", "samples": [] },
+        { "name": "AMAZON.HelpIntent", "samples": [] },
+        { "name": "AMAZON.StopIntent", "samples": [] },
+        { "name": "AMAZON.NavigateHomeIntent", "samples": [] },
+        { "name": "AMAZON.FallbackIntent", "samples": [] },
+        {
+          "name": "ResumoIntent",
+          "slots": [],
+          "samples": ["bom dia", "boa tarde", "boa noite", "resumo do dia", "como está meu dia", "me atualiza", "o que tenho hoje", "me dá um resumo"]
+        },
+        {
+          "name": "GastoIntent",
+          "slots": [{ "name": "frase", "type": "AMAZON.SearchQuery" }],
+          "samples": ["gastei {frase}", "paguei {frase}", "comprei {frase}", "lança um gasto de {frase}", "anota um gasto de {frase}", "registra um gasto de {frase}"]
+        },
+        {
+          "name": "AlarmeIntent",
+          "slots": [{ "name": "frase", "type": "AMAZON.SearchQuery" }],
+          "samples": ["me acorda {frase}", "cria um alarme {frase}", "coloca um alarme {frase}", "alarme {frase}", "despertador {frase}"]
+        },
+        {
+          "name": "LembreteIntent",
+          "slots": [{ "name": "frase", "type": "AMAZON.SearchQuery" }],
+          "samples": ["me lembra de {frase}", "me lembre de {frase}", "me lembra que {frase}", "lembrete {frase}", "cria um lembrete {frase}"]
+        },
+        {
+          "name": "EventoIntent",
+          "slots": [{ "name": "frase", "type": "AMAZON.SearchQuery" }],
+          "samples": ["marca {frase}", "agenda {frase}", "marca na agenda {frase}", "cria um evento {frase}", "tenho uma reunião {frase}", "tenho uma consulta {frase}"]
+        },
+        {
+          "name": "TarefaIntent",
+          "slots": [{ "name": "frase", "type": "AMAZON.SearchQuery" }],
+          "samples": ["cria uma tarefa {frase}", "adiciona uma tarefa {frase}", "anota uma tarefa {frase}", "nova tarefa {frase}", "preciso {frase}", "tenho que {frase}"]
+        },
+        {
+          "name": "PerguntaIntent",
+          "slots": [{ "name": "frase", "type": "AMAZON.SearchQuery" }],
+          "samples": [
+            "quanto {frase}", "qual {frase}", "quais {frase}", "quando {frase}", "como {frase}", "o que {frase}", "que horas {frase}",
+            "tenho {frase}", "me fala {frase}", "me diz {frase}", "me conta {frase}", "pergunta {frase}", "me dá uma dica {frase}", "você acha {frase}"
+          ]
+        }
+      ],
+      "types": []
+    }
+  }
+}

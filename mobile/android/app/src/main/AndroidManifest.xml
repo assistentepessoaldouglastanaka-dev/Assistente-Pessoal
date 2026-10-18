@@ -30,7 +30,23 @@
                 <data android:scheme="br.com.assistentepessoal" android:host="login" />
             </intent-filter>
 
+            <!-- Atalhos do widget: abrir o Jarvis ouvindo ou o Início -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="br.com.assistentepessoal" android:host="jarvis" />
+                <data android:scheme="br.com.assistentepessoal" android:host="inicio" />
+            </intent-filter>
+
         </activity>
+
+        <!-- Widget do Jarvis na tela inicial -->
+        <receiver android:name=".JarvisWidget" android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_jarvis_info" />
+        </receiver>
 
         <provider
             android:name="androidx.core.content.FileProvider"

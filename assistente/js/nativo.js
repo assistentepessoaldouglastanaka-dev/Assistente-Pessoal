@@ -10,7 +10,7 @@ const Nativo = {
   timer: null, assinatura: '', agendados: 0, permissao: null, exato: null,
   // O app Android abre o site da Vercel: os plugins nativos precisam ser registrados pelo nome
   // (a biblioteca @capacitor/core, em js/vendor, cria a ponte para o código nativo de cada um)
-  PLUGINS: ['App', 'LocalNotifications', 'Browser', 'StatusBar', 'SpeechRecognition', 'TextToSpeech'],
+  PLUGINS: ['App', 'LocalNotifications', 'Browser', 'StatusBar', 'SpeechRecognition', 'TextToSpeech', 'Preferences'],
   _p: null,
   get P() {
     if (this._p) return this._p;
@@ -25,7 +25,7 @@ const Nativo = {
     if (!this.ativo) return;
     const { App: A, LocalNotifications: LN, StatusBar } = this.P;
     try { await StatusBar.setBackgroundColor({ color: '#2f6fed' }); } catch (e) {}
-    A.addListener('appUrlOpen', ({ url }) => this.voltaLogin(url));
+    A.addListener('appUrlOpen', ({ url }) => this.abrirLink(url));
     A.addListener('backButton', () => {
       const aberto = document.querySelector('dialog[open]');
       if (aberto) { const b = aberto.querySelector('[data-r=nao], [data-m=cancelar], [data-f=fechar]'); b ? b.click() : aberto.close(); }
@@ -48,6 +48,41 @@ const Nativo = {
     });
     await this.verPermissoes();
     this.agendarDepois(500);
+    // aberto pelo widget com o app fechado
+    try { const { url } = await A.getLaunchUrl() || {}; if (url) setTimeout(() => this.abrirLink(url), 800); } catch (e) {}
+  },
+
+  // Links do app: retorno do login e atalhos do widget
+  abrirLink(url) {
+    if (!url) return;
+    if (url.startsWith(this.ESQUEMA + '://login')) return this.voltaLogin(url);
+    if (url.startsWith(this.ESQUEMA + '://jarvis')) return Jarvis.abrir({ ouvir: true });
+    if (url.startsWith(this.ESQUEMA + '://inicio')) return ir('inicio');
+  },
+
+  // ---------- Widget da tela inicial ----------
+  // Grava um resumo curto do dia; o widget lê ao sair do app (e a cada 30 min)
+  widgetTimer: null, widgetUltimo: '',
+  atualizarWidget() {
+    if (!this.ativo) return;
+    clearTimeout(this.widgetTimer);
+    this.widgetTimer = setTimeout(() => {
+      const h = hoje(), agora = hhmm(agoraMin());
+      const prox = [h, somaDias(h, 1)].flatMap(iso => Agenda.eventosDoDia(iso).map(e => ({ iso, e })))
+        .find(x => x.iso > h || !x.e.inicio || x.e.inicio >= agora);
+      const pend = db.tarefas.filter(t => t.status !== 'feito');
+      const atras = pend.filter(t => t.prazo && t.prazo < h).length;
+      const r = Financas.resumo(chaveMes(new Date()));
+      const dados = {
+        linha1: prox ? `${prox.iso === h ? 'Hoje' : 'Amanhã'}${prox.e.inicio ? ' ' + prox.e.inicio : ''} · ${prox.e.titulo}` : 'Agenda livre hoje e amanhã',
+        linha2: `${pend.length} tarefa${pend.length === 1 ? '' : 's'} pendente${pend.length === 1 ? '' : 's'}${atras ? ` · ${atras} atrasada${atras > 1 ? 's' : ''}` : ''}`,
+        linha3: r.renda ? `Saldo do mês: ${brl.format(r.saldo)}` : `Gastos do mês: ${brl.format(r.total)}`,
+      };
+      const json = JSON.stringify(dados);
+      if (json === this.widgetUltimo) return;
+      this.widgetUltimo = json;
+      this.P.Preferences?.set({ key: 'jarvis_widget', value: json }).catch(() => {});
+    }, 2000);
   },
 
   // ---------- Permissões ----------
