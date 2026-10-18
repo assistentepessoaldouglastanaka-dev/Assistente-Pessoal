@@ -64,6 +64,8 @@ function padrao() {
     alarmes: [],
     // { id, titulo, texto, fixada, atualizada }
     notas: [],
+    // medições de bioimpedância (Nutrição)
+    bioimpedancia: [],
     // integração com o Google (sincronizada entre aparelhos)
     google: { agenda: true, tasks: true, listas: {}, tasksCursor: {}, tasksMapa: {}, gmailUsados: [] },
   };

@@ -199,3 +199,33 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
   padding: 8px 16px; border-radius: 99px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 200; }
 .toast.show { opacity: 1; }
 @media (max-width: 800px) { .toast { bottom: 84px; } }
+
+/* Nutrição: bioimpedância */
+.bio-tile { display: block; text-align: left; white-space: normal; cursor: pointer; }
+.bio-tile.sel { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.bio-tile .val small { font-size: 13px; font-weight: 400; color: var(--muted); }
+.bio-tile .delta { font-size: 12.5px; margin-top: 2px; color: var(--muted); }
+.bio-tile .delta.pos { color: var(--ok); } .bio-tile .delta.neg { color: var(--bad); }
+.chips-metrica { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.grafico-bio { position: relative; touch-action: pan-y; }
+.grafico-bio svg { width: 100%; height: auto; display: block; overflow: visible; }
+.g-grade { stroke: var(--line); stroke-width: 1; }
+.g-eixo { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.g-linha { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.g-lacuna { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 2 5; opacity: .55; }
+.g-ponto { fill: var(--accent); stroke: var(--card); stroke-width: 2; }
+.g-foco { fill: var(--accent); stroke: var(--card); stroke-width: 2; pointer-events: none; }
+.g-rotulo { fill: var(--text); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.grafico-bio.ativo .g-rotulo { opacity: 0; }
+.g-mira { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; pointer-events: none; }
+.g-dica { position: absolute; pointer-events: none; background: var(--text); color: var(--bg); border-radius: 8px; padding: 5px 9px;
+  font-size: 12.5px; display: flex; flex-direction: column; align-items: center; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+.g-dica[hidden] { display: none; }
+.g-dica b { font-variant-numeric: tabular-nums; }
+.tabela-rolagem { overflow-x: auto; margin: 0 -4px; }
+.tabela { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.tabela th { text-align: right; color: var(--muted); font-weight: 500; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.tabela td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.tabela th:first-child, .tabela td:first-child { text-align: left; white-space: nowrap; }
+.tabela tr.descartada td { color: var(--muted); }
+.tabela tr.descartada td:not(:first-child):not(:last-child) { text-decoration: line-through; }
