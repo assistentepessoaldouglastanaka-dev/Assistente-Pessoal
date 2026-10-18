@@ -70,7 +70,7 @@ const Sync = {
       tarefas: db.tarefas, wishlist: db.wishlist, eventos: db.eventos, locais: db.locais, rotas: db.rotas,
       alarmes: db.alarmes, notas: db.notas,
       fixos: db.financas.fixos, variaveis: db.financas.variaveis, dividas: db.financas.dividas,
-      treinos_modelos: db.treinos.modelos, treinos_sessoes: db.treinos.sessoes,
+      treinos_modelos: db.treinos.modelos, treinos_sessoes: db.treinos.sessoes, bioimpedancia: db.bioimpedancia,
     };
   },
   unicos() {
