@@ -11,6 +11,11 @@ window.addEventListener('hashchange', () => {
   window.scrollTo(0, 0);
 });
 
+// PWA: service worker (offline + notificações) e botão "Instalar app"
+if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); App.instalar = e; render(); });
+window.addEventListener('appinstalled', () => { App.instalar = null; App.instalado = true; render(); aviso('App instalado ✔'); });
+
 Sync.iniciar();
 Sync.definirEstado(Sync.estado);
 

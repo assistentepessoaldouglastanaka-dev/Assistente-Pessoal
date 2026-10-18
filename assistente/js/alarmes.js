@@ -88,10 +88,13 @@ const Alarmes = {
     if (soneca && a) { this.sonecas.push({ em: Date.now() + 5 * 60000, titulo: a.titulo, texto: a.texto }); aviso('Soneca de 5 minutos'); }
     this.parar(); this.mostrar();
   },
-  notificar(titulo, texto) {
+  async notificar(titulo, texto) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const opcoes = { body: texto, requireInteraction: true, icon: 'icons/icone-192.png', badge: 'icons/icone-192.png', vibrate: [300, 150, 300], tag: titulo };
     try {
-      if ('Notification' in window && Notification.permission === 'granted')
-        new Notification(titulo, { body: texto, requireInteraction: true });
+      const reg = await navigator.serviceWorker?.getRegistration();
+      if (reg) return reg.showNotification(titulo, opcoes);
+      new Notification(titulo, opcoes);
     } catch (e) {}
   },
   audio() {
@@ -153,7 +156,7 @@ registrar({
     return `<div class="topo"><h1>⏰ Alarmes</h1><button data-acao="testar">🔊 Testar som</button>
         <button class="primary" data-acao="novo">+ Novo alarme</button></div>
       <div class="aviso">ℹ️ Os alarmes tocam enquanto este app estiver aberto em uma aba do navegador (pode ficar minimizada).
-        ${perm === 'default' ? '<button class="mini primary" data-acao="permitir">Ativar notificações do Windows</button>' : ''}
+        ${perm === 'default' ? '<button class="mini primary" data-acao="permitir">Ativar notificações</button>' : ''}
         ${perm === 'denied' ? '<b>Notificações bloqueadas no navegador — o alarme toca só dentro do app.</b>' : ''}</div>
       <div class="grid2">
         <section class="card"><h2>Meus alarmes</h2>

@@ -103,6 +103,9 @@ function salvar() {
   if (typeof Google !== 'undefined') Google.agendarTasks();
 }
 
+// Estado do app instalado (PWA): `instalar` guarda o convite de instalação do navegador
+const App = { instalar: null, instalado: matchMedia('(display-mode: standalone)').matches };
+
 // ============ Módulos e navegação ============
 const Modulos = {};
 const ORDEM = [];
