@@ -18,6 +18,7 @@ const Sync = {
       // chamadas ao Supabase fora do callback (recomendação da biblioteca)
       setTimeout(() => {
         if (evento === 'SIGNED_IN' && sessao?.provider_refresh_token) this.salvarTokenGoogle(sessao);
+        if (evento === 'SIGNED_IN' && sessao?.provider_token) Google.usarToken(sessao.provider_token, 3000);
         const u = sessao?.user || null;
         if (u?.id === this.usuario?.id) return;
         this.usuario = u;
@@ -72,7 +73,7 @@ const Sync = {
     };
   },
   unicos() {
-    return { config: db.config, renda: db.financas.renda, treinos_semana: db.treinos.semana, treinos_atual: db.treinos.atual };
+    return { config: db.config, renda: db.financas.renda, treinos_semana: db.treinos.semana, treinos_atual: db.treinos.atual, google: db.google };
   },
   definirUnico(nome, v) {
     const trocar = (alvo, novo) => { for (const k of Object.keys(alvo)) delete alvo[k]; Object.assign(alvo, novo || {}); };
@@ -80,6 +81,7 @@ const Sync = {
     else if (nome === 'renda') trocar(db.financas.renda, v);
     else if (nome === 'treinos_semana') trocar(db.treinos.semana, v);
     else if (nome === 'treinos_atual') db.treinos.atual = v ?? null;
+    else if (nome === 'google') { trocar(db.google, v); mesclar(padrao().google, db.google); }
   },
   estadoLocal() {
     const m = {};
@@ -183,9 +185,11 @@ const Sync = {
         p => { if (p.new?.colecao) { this.aplicar([p.new]); this.salvarEstado(); } })
       .subscribe();
     render();
+    Google.aoConectar();
   },
   desconectar() {
     if (this.canal) { this.sb.removeChannel(this.canal); this.canal = null; }
+    Google.aoDesconectar();
     this.definirEstado('desligado');
     render();
   },

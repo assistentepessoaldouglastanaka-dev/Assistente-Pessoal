@@ -46,16 +46,16 @@ const Financas = {
     }
     return out.filter(x => x.data <= lim && (x.data >= h || x.data.slice(0, 7) === m0)).sort((a, b) => a.data.localeCompare(b.data));
   },
-  formVar(v, valores) {
+  formVar(v, valores, aoSalvar) {
     crud({
-      lista: db.financas.variaveis, item: v, titulos: ['Novo gasto', 'Editar gasto'],
+      lista: db.financas.variaveis, item: v, titulos: ['Novo gasto', 'Editar gasto'], valores: v ? null : valores,
       campos: [
         { nome: 'nome', rotulo: 'Descrição', obrigatorio: true, dica: 'Ex.: Mercado' },
         { nome: 'valor', rotulo: 'Valor (R$)', tipo: 'number', min: 0, obrigatorio: true },
         { nome: 'categoria', rotulo: 'Categoria', tipo: 'select', opcoes: CATEGORIAS, padrao: valores?.categoria },
         { nome: 'data', rotulo: 'Data', tipo: 'date', obrigatorio: true, padrao: valores?.data || hoje() },
       ],
-      depois: g => { Financas.mes = g.data.slice(0, 7); },
+      depois: g => { Financas.mes = g.data.slice(0, 7); aoSalvar?.(g); },
     });
   },
   formFixo(f) {
