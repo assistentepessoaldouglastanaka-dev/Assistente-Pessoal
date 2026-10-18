@@ -1,7 +1,7 @@
 // Service worker: permite abrir o app sem internet e mostrar notificações no celular.
 // Arquivos do app: rede primeiro (sempre a versão nova quando online), cache como reserva offline.
 // Bibliotecas externas (CDN): cache primeiro. APIs (Supabase, Google): nunca passam pelo cache.
-const VERSAO = 'assistente-v9';
+const VERSAO = 'assistente-v10';
 const ARQUIVOS = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
   'js/vendor/capacitor-core.js', 'js/config.js', 'js/icones.js', 'js/core.js', 'js/sync.js', 'js/inicio.js', 'js/tarefas.js', 'js/financas.js', 'js/agenda.js',

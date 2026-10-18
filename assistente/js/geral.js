@@ -69,7 +69,12 @@ registrar({
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap" class="mt">
         <button class="mini" data-acao="jarvisTestar">${ic('play', 'ic-sm')} Testar voz</button>
-        <button class="mini fantasma" data-acao="jarvisRecarregarVozes">${ic('refresh-cw', 'ic-sm')} Recarregar vozes</button></div>` : ''}
+        <button class="mini fantasma" data-acao="jarvisRecarregarVozes">${ic('refresh-cw', 'ic-sm')} Recarregar vozes</button></div>
+      ${Nativo.ativo ? `<div class="mt" style="border-top:1px solid var(--line);padding-top:10px">
+        <p class="muted" style="font-size:12.5px;margin:0 0 8px">Vozes não aparecem? Faça na ordem: <b>1.</b> baixe as vozes do Google; <b>2.</b> em "Mecanismo preferido" escolha <b>Google</b>; <b>3.</b> volte aqui e toque em Recarregar vozes.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="mini" data-acao="jarvisBaixarVozes">${ic('download', 'ic-sm')} 1. Baixar vozes do Google</button>
+          <button class="mini fantasma" data-acao="jarvisConfigVoz">${ic('settings', 'ic-sm')} 2. Escolher mecanismo</button></div></div>` : ''}` : ''}
       <p class="muted" style="font-size:12.5px;margin:10px 0 0">Comandos comuns funcionam sem internet. Perguntas livres usam a IA gratuita da Cloudflare. Atalho no computador: Alt+J.</p>`;
   },
   cardSync() {
@@ -111,6 +116,17 @@ registrar({
       aviso('Procurando vozes...');
       await Voz.carregarVozes(true);
       aviso(Voz.lista.length ? `${Voz.lista.length} vozes encontradas` : Voz.descricaoSituacao());
+    },
+    async jarvisBaixarVozes() {
+      const S = Nativo.P.Sistema;
+      try {
+        const r = await S.baixarVozesGoogle();
+        aviso(r?.abriu === 'loja' ? 'Instale "Serviços de fala do Google" e depois toque em 1 de novo' : 'Baixe "Português (Brasil)" e volte ao app');
+      } catch { aviso('Atualize o app (APK novo) para usar este atalho'); }
+    },
+    async jarvisConfigVoz() {
+      try { await Nativo.P.Sistema.abrirConfigVoz(); aviso('Em "Mecanismo preferido", escolha Google'); }
+      catch { aviso('Atualize o app (APK novo) para usar este atalho'); }
     },
     jarvisTestar() { Voz.falar(`Às suas ordens, ${Jarvis.tratamento()}. Todos os sistemas estão operacionais. Sua agenda de hoje tem três compromissos e o saldo do mês está positivo.`, true); },
     jarvisTratamento(d, el) { db.config.jarvis.tratamento = el.value; ok(); Voz.falar(`Certo, ${Jarvis.tratamento()}.`); },
