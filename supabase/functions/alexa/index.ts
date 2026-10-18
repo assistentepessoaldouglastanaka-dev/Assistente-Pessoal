@@ -48,14 +48,21 @@ function ocorre(ev: any, iso: string) {
 
 // ---------- Google (Agenda) ----------
 // deno-lint-ignore no-explicit-any
+// O acesso ao Google vale ~1 h: fica guardado entre chamadas para não renovar a cada pedido
+const cacheGoogle = { token: '', expira: 0 };
 async function tokenGoogle(admin: any, userId: string): Promise<string | null> {
+  if (cacheGoogle.token && Date.now() < cacheGoogle.expira) return cacheGoogle.token;
   const { data } = await admin.from('integracoes').select('refresh_token').eq('user_id', userId).eq('provedor', 'google').maybeSingle();
   if (!data?.refresh_token) return null;
   const r = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, signal: comLimite(2000),
     body: new URLSearchParams({ client_id: Deno.env.get('GOOGLE_CLIENT_ID')!, client_secret: Deno.env.get('GOOGLE_CLIENT_SECRET')!, refresh_token: data.refresh_token, grant_type: 'refresh_token' }),
   });
-  return r.ok ? (await r.json()).access_token : null;
+  if (!r.ok) return null;
+  const t = await r.json();
+  cacheGoogle.token = t.access_token;
+  cacheGoogle.expira = Date.now() + (Number(t.expires_in || 3600) - 300) * 1000;
+  return cacheGoogle.token;
 }
 const CAL = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
 
@@ -107,8 +114,12 @@ const PREFIXO: Record<string, string> = {
   TarefaIntent: 'cria uma tarefa ', PerguntaIntent: '', ResumoIntent: 'faça um resumo do meu dia de hoje',
 };
 
+// A Alexa espera no máximo 8 s: o pedido inteiro tem um orçamento de 7,2 s
+const ORCAMENTO = 7200;
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response('ok');
+  const inicio = Date.now();
   const bruto = await req.text();
 
   // 1) O pedido veio mesmo da Alexa? (assinatura digital da Amazon; também recusa pedidos com mais de 150 s)
@@ -123,7 +134,7 @@ Deno.serve(async (req) => {
   try { corpo = JSON.parse(bruto); } catch { return new Response('requisição inválida', { status: 400 }); }
 
   try {
-    return await atender(corpo);
+    return await atender(corpo, inicio);
   } catch (e) {
     console.error('Erro na skill:', e);
     return falar('Tive um problema interno, senhor. Os detalhes ficaram no registro da função.');
@@ -131,7 +142,9 @@ Deno.serve(async (req) => {
 });
 
 // deno-lint-ignore no-explicit-any
-async function atender(corpo: any): Promise<Response> {
+async function atender(corpo: any, inicio: number): Promise<Response> {
+  const restante = () => ORCAMENTO - (Date.now() - inicio);
+  const tempos: string[] = [`assinatura ${Date.now() - inicio}ms`];
   // 2) É a sua skill? (a assinatura já garantiu que veio da Alexa, então dá para explicar o problema em voz)
   const skill = corpo.session?.application?.applicationId ?? corpo.context?.System?.application?.applicationId;
   const esperado = Deno.env.get('ALEXA_SKILL_ID');
@@ -157,8 +170,11 @@ async function atender(corpo: any): Promise<Response> {
   const userId = Deno.env.get('ALEXA_USER_ID')!.trim();
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
 
-  // Dados do usuário (mesma tabela que o app sincroniza)
+  // Dados do usuário (mesma tabela que o app sincroniza) e acesso ao Google, ao mesmo tempo
+  const t0 = Date.now();
+  const tokenP = tokenGoogle(admin, userId).catch(() => null);
   const { data: linhas, error: erroBanco } = await admin.from('itens').select('colecao,id,dados').eq('user_id', userId).eq('excluido', false);
+  tempos.push(`banco ${Date.now() - t0}ms`);
   if (erroBanco) { console.error('Banco:', erroBanco); return falar('Não consegui ler seus dados, senhor. Confira o segredo ALEXA USER ID.'); }
   if (!linhas?.length) return falar('Não encontrei dados para este usuário, senhor. Confira se o ALEXA USER ID é o mesmo da sua conta no app.');
   // deno-lint-ignore no-explicit-any
@@ -170,13 +186,14 @@ async function atender(corpo: any): Promise<Response> {
 
   // Eventos do Google Agenda (hoje e amanhã), se a integração estiver ligada
   const usaGoogle = unicos.google?.agenda !== false;
-  const token = usaGoogle ? await tokenGoogle(admin, userId).catch(() => null) : null;
+  const t1 = Date.now();
+  const token = usaGoogle ? await Promise.race([tokenP, new Promise<null>((r) => setTimeout(() => r(null), Math.max(0, Math.min(2000, restante() - 4500))))]) : null;
   // deno-lint-ignore no-explicit-any
   let eventosGoogle: any[] = [];
   if (token) {
     const h = hojeISO();
     const p = new URLSearchParams({ singleEvents: 'true', orderBy: 'startTime', timeMin: `${h}T00:00:00-03:00`, timeMax: `${somaDias(h, 2)}T00:00:00-03:00` });
-    const r = await fetch(`${CAL}?${p}`, { headers: { Authorization: `Bearer ${token}` }, signal: comLimite(2500) }).catch(() => null);
+    const r = await fetch(`${CAL}?${p}`, { headers: { Authorization: `Bearer ${token}` }, signal: comLimite(Math.max(300, Math.min(2000, restante() - 4000))) }).catch(() => null);
     if (r?.ok) eventosGoogle = ((await r.json()).items ?? []).filter((e: { status: string }) => e.status !== 'cancelled').map((e: { summary?: string; start: { date?: string; dateTime?: string } }) => ({
       titulo: e.summary ?? '(sem título)',
       data: e.start.date ?? (e.start.dateTime ? new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(new Date(e.start.dateTime)) : ''),
@@ -184,18 +201,22 @@ async function atender(corpo: any): Promise<Response> {
     }));
   }
 
-  // IA gratuita da Cloudflare
+  tempos.push(`google ${Date.now() - t1}ms`);
+
+  // IA gratuita da Cloudflare (com o tempo que sobrou)
   const conta = Deno.env.get('CF_ACCOUNT_ID'), cfToken = Deno.env.get('CF_API_TOKEN');
   if (!conta || !cfToken) return falar('Minha inteligência na nuvem ainda não foi configurada, senhor. Faltam os segredos da Cloudflare.');
   const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${conta}/ai/run/${MODELO}`, {
     method: 'POST', headers: { Authorization: `Bearer ${cfToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ max_tokens: 250, temperature: 0.3, messages: [
+    body: JSON.stringify({ max_tokens: 180, temperature: 0.3, messages: [
       { role: 'system', content: SISTEMA + '\n\nCONTEXTO:\n' + montarContexto(c, unicos, eventosGoogle) },
       { role: 'user', content: pergunta.slice(0, 500) },
     ] }),
-    signal: comLimite(5500),
+    signal: comLimite(Math.max(1000, restante() - 300)),
   }).catch(() => null);
   const dados = await r?.json().catch(() => null);
+  tempos.push(`ia ${Date.now() - t1}ms`, `total ${Date.now() - inicio}ms`);
+  console.log('Tempos:', tempos.join(' · '));
   if (!r?.ok || !dados?.success) {
     console.error('Cloudflare:', r?.status, JSON.stringify(dados?.errors ?? dados ?? 'sem resposta (tempo esgotado)'));
     return falar(r ? 'Não consegui pensar nisso agora, senhor. Confira o token da Cloudflare.' : 'Demorei demais para pensar, senhor. Tente de novo.');
