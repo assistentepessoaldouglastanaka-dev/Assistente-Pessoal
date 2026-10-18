@@ -1,0 +1,5 @@
+project_id = "assistente-pessoal"
+
+# A função valida o usuário por conta própria (aceita as chaves novas do Supabase)
+[functions.google-token]
+verify_jwt = false

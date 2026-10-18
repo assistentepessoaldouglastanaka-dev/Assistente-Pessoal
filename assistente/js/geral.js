@@ -24,6 +24,8 @@ registrar({
       <section class="card mt"><h2>☁️ Conta e sincronização <span class="sp"></span>${Sync.usuario ? Sync.rotulo()[0] : ''}</h2>
         ${this.cardSync()}
       </section>
+      ${Sync.usuario ? `<section class="card mt"><h2>🔗 Google Workspace<span class="sp"></span>
+          <button class="mini" data-acao="googleAgora">🔄 Atualizar agora</button></h2>${this.cardGoogle()}</section>` : ''}
       <div class="grid2 mt">
         <section class="card"><h2>⚙️ Configurações</h2>
           <div class="campos">
@@ -59,8 +61,22 @@ registrar({
       <div class="linha"><span>Último envio</span><span>${Sync.ultimo ? new Date(Sync.ultimo).toLocaleString('pt-BR') : '—'}</span></div>
       <div style="display:flex;gap:8px;margin-top:10px"><button data-acao="syncAgora">🔄 Sincronizar agora</button><button data-acao="sair">Sair</button></div>`;
   },
+  cardGoogle() {
+    const hora = iso => iso ? new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '—';
+    const linha = (k, nome, status) => `<div class="linha" style="align-items:center">
+      <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" data-muda="googleLiga" data-k="${k}"${db.google[k] ? ' checked' : ''}> ${nome}</label>
+      <span class="muted" style="text-align:right">${status}</span></div>`;
+    return `${Google.erro ? `<div class="aviso">⚠️ ${esc(Google.erro)}</div>` : ''}
+      ${linha('agenda', '📅 Google Agenda', !db.google.agenda ? 'desligado' : GAgenda.erro ? '⚠️ ' + esc(GAgenda.erro)
+        : `${GAgenda.eventos.length} eventos · atualizado ${hora(GAgenda.carregadoEm)}`)}
+      ${linha('tasks', '✔️ Google Tasks (listas "Trabalho" e "Pessoal")', !db.google.tasks ? 'desligado' : GTarefas.erro ? '⚠️ ' + esc(GTarefas.erro)
+        : `${db.tarefas.filter(t => t.gtaskId).length} tarefas ligadas · ${hora(GTarefas.em)}`)}
+      <div class="linha"><span>📧 Gmail</span><a href="#gmail">abrir e-mails →</a></div>`;
+  },
   acoes: {
     entrar() { Sync.entrar(); },
+    async googleAgora() { aviso('Atualizando com o Google...'); await Google.atualizar(); render(); aviso(Google.erro || 'Google atualizado ✔'); },
+    googleLiga(d, el) { db.google[d.k] = el.checked; ok(); if (el.checked) Google.atualizar(); },
     sair() { Sync.sair(); },
     async syncAgora() { await Sync.sincronizar(); render(); aviso(Sync.estado === 'ok' ? 'Sincronizado ✔' : Sync.rotulo()[1]); },
     novaNota() { this.formNota(); },

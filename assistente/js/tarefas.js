@@ -31,9 +31,9 @@ const Tarefas = {
       { nome: 'status', rotulo: 'Status', tipo: 'select', opcoes: [['afazer', 'A fazer'], ['fazendo', 'Fazendo'], ['feito', 'Concluído']], padrao: 'afazer' });
     campos.push({ nome: 'notas', rotulo: 'Notas', tipo: 'textarea', largo: true, linhas: 3 });
     crud({
-      lista: db.tarefas, item: t, campos, titulos: ['Nova tarefa', 'Editar tarefa'],
+      lista: db.tarefas, item: t, campos, titulos: ['Nova tarefa', 'Editar tarefa'], valores: t ? null : valores,
       preparar: (v, item) => {
-        if (!item) { v.area = area; v.status = v.status || 'afazer'; Object.assign(v, valores); }
+        if (!item) { v.area = area; v.status = v.status || 'afazer'; }
         v.concluida = v.status === 'feito' ? (item?.concluida || hoje()) : null;
       },
     });

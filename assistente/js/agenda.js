@@ -8,6 +8,8 @@ const Agenda = {
   sel: hoje(),
   mes: chaveMes(new Date()),
   ocorre(ev, iso) {
+    // eventos do Google já vêm expandidos (uma ocorrência por item); os de dia inteiro podem durar vários dias
+    if (ev.google) return ev.ateExcl ? iso >= ev.data && iso < ev.ateExcl : iso === ev.data;
     if (iso < ev.data || (ev.ate && iso > ev.ate)) return false;
     switch (ev.repetir) {
       case 'diario': return true;
@@ -19,7 +21,8 @@ const Agenda = {
     }
   },
   eventosDoDia(iso) {
-    return db.eventos.filter(ev => this.ocorre(ev, iso)).sort((a, b) => (a.inicio || '').localeCompare(b.inicio || ''));
+    const todos = GAgenda.ativa() ? [...db.eventos, ...GAgenda.eventos] : db.eventos;
+    return todos.filter(ev => this.ocorre(ev, iso)).sort((a, b) => (a.inicio || '').localeCompare(b.inicio || ''));
   },
   rota(ev) { return ev.rotaId ? db.rotas.find(r => r.id === ev.rotaId) : null; },
   horaSaida(ev) {
@@ -31,32 +34,38 @@ const Agenda = {
     const saida = this.horaSaida(ev), r = this.rota(ev);
     return `<li class="ev ev-${ev.tipo || 'pessoal'}">
       <div class="hora">${ev.inicio ? ev.inicio + (ev.fim ? `<small>${ev.fim}</small>` : '') : '<small>dia todo</small>'}</div>
-      <div class="info"><div class="nome">${esc(ev.titulo)}${ev.repetir && ev.repetir !== 'nao' ? ' <span title="Repete">🔁</span>' : ''}${ev.alerta !== '' && ev.alerta != null ? ' <span title="Com alerta">🔔</span>' : ''}</div>
+      <div class="info"><div class="nome">${esc(ev.titulo)}${(ev.repetir && ev.repetir !== 'nao') || ev.serie ? ' <span title="Repete">🔁</span>' : ''}${ev.alerta !== '' && ev.alerta != null ? ' <span title="Com alerta">🔔</span>' : ''}</div>
         <div class="sub">${ev.local ? '📍 ' + esc(ev.local) : ''}${saida ? ` · 🚗 sair às <b>${saida}</b>` : ''}</div></div>
       ${r ? `<a class="btn mini" href="${Trajetos.linkMaps(r)}" target="_blank" rel="noopener">Rota</a>`
         : ev.local ? `<a class="btn mini" href="${Trajetos.linkBusca(ev.local)}" target="_blank" rel="noopener">Mapa</a>` : ''}
+      ${ev.meet ? `<a class="btn mini" href="${esc(ev.meet)}" target="_blank" rel="noopener">Meet</a>` : ''}
       <button class="icon" data-acao="agenda:editar" data-id="${ev.id}" title="Editar">✎</button></li>`;
   },
+  campos(valores = {}, comPersonalizada = false) {
+    return [
+      { nome: 'titulo', rotulo: 'Título', obrigatorio: true, largo: true },
+      { nome: 'data', rotulo: 'Data', tipo: 'date', obrigatorio: true, padrao: valores.data || this.sel },
+      { nome: 'tipo', rotulo: 'Tipo', tipo: 'select', opcoes: TIPOS_EVENTO, padrao: valores.tipo },
+      { nome: 'inicio', rotulo: 'Início', tipo: 'time', ajuda: 'Vazio = dia todo' },
+      { nome: 'fim', rotulo: 'Fim', tipo: 'time' },
+      { nome: 'local', rotulo: 'Local', largo: true, sugestoes: db.locais.map(l => l.nome), padrao: valores.local },
+      { nome: 'rotaId', rotulo: 'Trajeto até lá', tipo: 'select', opcoes: [['', 'Sem deslocamento'], ...db.rotas.map(r => [r.id, `${r.nome} (${r.duracao || '?'} min)`])],
+        padrao: valores.rotaId, ajuda: 'Avisa a hora de sair' },
+      { nome: 'alerta', rotulo: 'Lembrete', tipo: 'select', opcoes: ALERTAS, padrao: '15' },
+      { nome: 'repetir', rotulo: 'Repetir', tipo: 'select', opcoes: comPersonalizada ? [...REPETICOES, ['outro', 'Personalizada (definida no Google)']] : REPETICOES },
+      { nome: 'ate', rotulo: 'Repetir até', tipo: 'date', ajuda: 'Opcional' },
+      { nome: 'notas', rotulo: 'Notas', tipo: 'textarea', largo: true, linhas: 2 },
+    ];
+  },
+  validar(v) {
+    if (v.fim && v.inicio && v.fim < v.inicio) { alert('O fim precisa ser depois do início.'); return false; }
+  },
+  // Conectado ao Google, eventos novos vão para o Google Agenda; sem conexão, ficam só no app
   form(ev, valores = {}) {
+    if (ev?.google || (!ev && GAgenda.ativa())) return GAgenda.form(ev, valores);
     crud({
-      lista: db.eventos, item: ev, titulos: ['Novo evento', 'Editar evento'],
-      campos: [
-        { nome: 'titulo', rotulo: 'Título', obrigatorio: true, largo: true },
-        { nome: 'data', rotulo: 'Data', tipo: 'date', obrigatorio: true, padrao: valores.data || this.sel },
-        { nome: 'tipo', rotulo: 'Tipo', tipo: 'select', opcoes: TIPOS_EVENTO, padrao: valores.tipo },
-        { nome: 'inicio', rotulo: 'Início', tipo: 'time', ajuda: 'Vazio = dia todo' },
-        { nome: 'fim', rotulo: 'Fim', tipo: 'time' },
-        { nome: 'local', rotulo: 'Local', largo: true, sugestoes: db.locais.map(l => l.nome), padrao: valores.local },
-        { nome: 'rotaId', rotulo: 'Trajeto até lá', tipo: 'select', opcoes: [['', 'Sem deslocamento'], ...db.rotas.map(r => [r.id, `${r.nome} (${r.duracao || '?'} min)`])],
-          padrao: valores.rotaId, ajuda: 'Avisa a hora de sair' },
-        { nome: 'alerta', rotulo: 'Lembrete', tipo: 'select', opcoes: ALERTAS, padrao: '15' },
-        { nome: 'repetir', rotulo: 'Repetir', tipo: 'select', opcoes: REPETICOES },
-        { nome: 'ate', rotulo: 'Repetir até', tipo: 'date', ajuda: 'Opcional' },
-        { nome: 'notas', rotulo: 'Notas', tipo: 'textarea', largo: true, linhas: 2 },
-      ],
-      preparar: v => {
-        if (v.fim && v.inicio && v.fim < v.inicio) { alert('O fim precisa ser depois do início.'); return false; }
-      },
+      lista: db.eventos, item: ev, titulos: ['Novo evento', 'Editar evento'], campos: this.campos(valores),
+      preparar: v => this.validar(v),
       depois: e => { this.sel = e.data; this.mes = e.data.slice(0, 7); },
     });
   },
@@ -87,7 +96,12 @@ registrar({
       if (l.length) proximos += `<div class="sub muted" style="margin-top:10px;font-weight:600">${rotuloDia(iso)}</div><ul class="lista">${l.map(e => A.itemHTML(e)).join('')}</ul>`;
     }
 
-    return `<div class="topo"><h1>📅 Agenda</h1><button class="primary" data-acao="novo">+ Novo evento</button></div>
+    const g = GAgenda.ativa();
+    return `<div class="topo"><h1>📅 Agenda</h1>
+        ${g ? `<span class="chip" title="${esc(GAgenda.erro || 'Sincronizado com o Google Agenda')}">${GAgenda.erro ? '⚠️' : '🔗'} Google Agenda</span>` : ''}
+        ${g && db.eventos.length ? `<button data-acao="enviarGoogle">Enviar ${db.eventos.length} evento(s) do app ao Google</button>` : ''}
+        <button class="primary" data-acao="novo">+ Novo evento</button></div>
+      ${g && GAgenda.erro ? `<div class="aviso">⚠️ ${esc(GAgenda.erro)}</div>` : ''}
       <div class="grid2">
         <section class="card">
           <div class="cal-topo"><button data-acao="mesAnt">◀</button><strong>${nomeMes(A.mes)}</strong>
@@ -108,7 +122,8 @@ registrar({
   },
   acoes: {
     novo() { Agenda.form(); },
-    editar(d) { Agenda.form(db.eventos.find(e => e.id === d.id)); },
+    editar(d) { Agenda.form(db.eventos.find(e => e.id === d.id) || GAgenda.eventos.find(e => e.id === d.id)); },
+    enviarGoogle() { GAgenda.enviarLocais(); },
     dia(d) { Agenda.sel = d.iso; Agenda.mes = d.iso.slice(0, 7); render(); },
     mesAnt() { Agenda.mes = somaMes(Agenda.mes, -1); render(); },
     mesProx() { Agenda.mes = somaMes(Agenda.mes, 1); render(); },

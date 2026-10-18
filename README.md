@@ -20,3 +20,15 @@ Abra http://localhost:8765. Sem login, os dados ficam só no navegador; entrando
 
 - `assistente/js/config.js` — URL do projeto Supabase e chave *publishable* (pública; a segurança vem do RLS no banco).
 - Login com Google: ativar o provedor Google no Supabase (Authentication → Providers).
+
+## Integração com o Google (Agenda, Tasks, Gmail)
+
+A Edge Function `google-token` renova o acesso ao Google usando o refresh token salvo no login.
+
+```bash
+npx supabase login
+npx supabase link --project-ref dcbjrjpbvyjavgwuchuf
+npx supabase functions deploy google-token --no-verify-jwt
+```
+
+Secrets da função (Supabase → Edge Functions → Secrets): `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET`.

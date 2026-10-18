@@ -64,6 +64,8 @@ function padrao() {
     alarmes: [],
     // { id, titulo, texto, fixada, atualizada }
     notas: [],
+    // integração com o Google (sincronizada entre aparelhos)
+    google: { agenda: true, tasks: true, listas: {}, tasksCursor: {}, tasksMapa: {}, gmailUsados: [] },
   };
 }
 
@@ -98,6 +100,7 @@ function salvar() {
   try { localStorage.setItem(CHAVE, JSON.stringify(db)); }
   catch (e) { aviso('Não foi possível salvar no navegador — exporte um backup.'); }
   if (typeof Sync !== 'undefined') Sync.agendar();
+  if (typeof Google !== 'undefined') Google.agendarTasks();
 }
 
 // ============ Módulos e navegação ============
