@@ -13,7 +13,7 @@ const Sync = {
   iniciar() {
     if (!this.configurado()) return;
     if (location.protocol === 'file:') { this.estado = 'arquivo'; return; }
-    this.sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    this.sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, Nativo.ativo ? { auth: { flowType: 'pkce' } } : undefined);
     this.sb.auth.onAuthStateChange((evento, sessao) => {
       // chamadas ao Supabase fora do callback (recomendação da biblioteca)
       setTimeout(() => {
@@ -31,6 +31,7 @@ const Sync = {
   },
 
   async entrar() {
+    if (Nativo.ativo) return Nativo.entrar();
     const { error } = await this.sb.auth.signInWithOAuth({
       provider: 'google',
       options: {

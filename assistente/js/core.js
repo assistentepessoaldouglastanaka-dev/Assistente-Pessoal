@@ -123,6 +123,7 @@ function render() {
   document.querySelectorAll('#nav a').forEach(a => a.classList.toggle('ativo', a.dataset.id === m.id));
   $('#conteudo').innerHTML = m.render();
   document.title = m.nome + ' · Assistente';
+  if (typeof Nativo !== 'undefined') Nativo.agendarDepois();
 }
 
 function ir(id) { if (atual !== id) location.hash = id; }

@@ -1,0 +1,18 @@
+{
+  "appId": "br.com.assistentepessoal",
+  "appName": "Assistente",
+  "webDir": "../assistente",
+  "server": {
+    "url": "https://assistentepessoal-phi.vercel.app",
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_assistente",
+      "iconColor": "#2f6fed"
+    }
+  }
+}

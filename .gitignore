@@ -2,6 +2,9 @@
 *.json
 !.claude/launch.json
 !vercel.json
+!mobile/package.json
+!mobile/package-lock.json
+!mobile/capacitor.config.json
 !assistente/**/*.json
 controle-de-gastos.html
 

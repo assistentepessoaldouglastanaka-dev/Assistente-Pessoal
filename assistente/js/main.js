@@ -17,6 +17,7 @@ window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); App.in
 window.addEventListener('appinstalled', () => { App.instalar = null; App.instalado = true; render(); aviso('App instalado ✔'); });
 
 Sync.iniciar();
+Nativo.iniciar();
 Sync.definirEstado(Sync.estado);
 
 // Alarmes: verifica a cada 10 s; o áudio só pode ser liberado após uma interação do usuário

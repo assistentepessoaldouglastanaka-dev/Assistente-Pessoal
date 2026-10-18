@@ -32,3 +32,20 @@ npx supabase functions deploy google-token --no-verify-jwt
 ```
 
 Secrets da função (Supabase → Edge Functions → Secrets): `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET`.
+
+## App Android (Capacitor)
+
+`mobile/` contém o app Android. Ele abre o app publicado na Vercel e adiciona alarmes/lembretes nativos
+(tocam com o app fechado), login com Google pelo navegador do sistema e botão voltar.
+
+Pré-requisito: Android Studio. Para gerar o APK:
+
+```bash
+cd mobile
+npm install
+npx cap sync android
+cd android && ./gradlew assembleDebug
+```
+
+O APK fica em `mobile/android/app/build/outputs/apk/debug/app-debug.apk`.
+No Supabase (Authentication → URL Configuration → Redirect URLs) é preciso ter `br.com.assistentepessoal://login`.
