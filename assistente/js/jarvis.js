@@ -203,30 +203,52 @@ const Voz = {
   // ----- Escolha da voz (cada aparelho tem as suas; a escolha fica salva só neste aparelho) -----
   // No Android a lista completa tem centenas de vozes e pode demorar: fica guardada no aparelho e
   // é atualizada em segundo plano, sem nunca atrasar a fala.
-  lista: [], carregando: null,
+  lista: [], carregando: null, situacao: '', tentativas: 0, total: 0,
   lerCache() {
     try { const c = JSON.parse(localStorage.getItem('assistente.vozes')); if (Array.isArray(c) && c.length) this.lista = c; } catch (e) {}
     return this.lista;
   },
-  carregarVozes() {
+  // O mecanismo de voz do Android leva alguns segundos para ficar pronto depois que o app abre:
+  // se a busca falhar (ou vier vazia), tenta de novo sozinha por até ~1 minuto.
+  carregarVozes(manual = false) {
     if (this.carregando) return this.carregando;
+    if (manual) this.tentativas = 0;
+    this.situacao = 'carregando';
     this.carregando = (async () => {
       try {
         const brutas = Nativo.ativo ? (await Nativo.P.TextToSpeech.getSupportedVoices()).voices : speechSynthesis.getVoices();
-        const lista = brutas.map((v, idx) => ({ id: v.voiceURI || v.name, nome: v.name, lang: (v.lang || '').replace('_', '-'), idx }))
+        this.total = brutas?.length || 0;
+        const lista = (brutas || []).map((v, idx) => ({ id: v.voiceURI || v.name, nome: v.name, lang: (v.lang || '').replace('_', '-'), idx }))
           .filter(v => /^pt/i.test(v.lang) && !/-language$/.test(v.id))
           .map(v => ({ ...v, rotulo: this.rotulo(v), nota: this.pontuar(v) }))
           .sort((a, b) => b.nota - a.nota);
         if (lista.length) {
           this.lista = lista;
+          this.situacao = 'ok';
+          this.tentativas = 0;
           if (Nativo.ativo) try { localStorage.setItem('assistente.vozes', JSON.stringify(lista)); } catch (e) {}
-          if (atual === 'geral' && !document.querySelector('dialog[open]')) render();
-        }
-      } catch (e) { /* mecanismo de voz ainda iniciando: tenta de novo na próxima vez */ }
+        } else this.situacao = this.total ? 'sem-portugues' : 'vazio';
+      } catch (e) {
+        this.situacao = 'erro: ' + (e?.message || e);
+      }
       this.carregando = null;
+      if (this.situacao !== 'ok' && this.situacao !== 'sem-portugues' && this.tentativas < 6) {
+        this.tentativas++;
+        setTimeout(() => this.carregarVozes(), 2500 * this.tentativas);
+      }
+      if (atual === 'geral' && !document.querySelector('dialog[open]')) render();
       return this.lista;
     })();
     return this.carregando;
+  },
+  // Texto para a tela de ajustes
+  descricaoSituacao() {
+    if (this.lista.length) return `${this.lista.length} vozes em português encontradas neste aparelho.`;
+    if (this.situacao === 'carregando' || (!this.situacao && Nativo.ativo)) return 'Procurando as vozes do aparelho... (pode levar alguns segundos)';
+    if (this.situacao === 'sem-portugues') return `O aparelho tem ${this.total} vozes, mas nenhuma em português. Instale as vozes em português nas configurações de "Saída de texto para fala".`;
+    if (this.situacao === 'vazio') return 'O mecanismo de voz do aparelho ainda não respondeu.';
+    if (this.situacao.startsWith('erro')) return 'O mecanismo de voz respondeu com erro: ' + this.situacao.slice(6);
+    return '';
   },
   // Vozes masculinas e "naturais/neurais" (as mais humanas) primeiro
   pontuar(v) {
