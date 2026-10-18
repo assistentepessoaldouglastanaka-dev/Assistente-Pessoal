@@ -1,6 +1,7 @@
 'use strict';
 // ============ Trajetos e deslocamentos ============
-const MODOS = [['carro', '🚗 Carro'], ['transporte', '🚌 Transporte público'], ['moto', '🏍️ Moto'], ['bike', '🚲 Bicicleta'], ['ape', '🚶 A pé']];
+const MODOS = [['carro', 'Carro'], ['transporte', 'Transporte público'], ['moto', 'Moto'], ['bike', 'Bicicleta'], ['ape', 'A pé']];
+const ICONE_MODO = { carro: 'car', transporte: 'bus', moto: 'bike', bike: 'bike', ape: 'footprints' };
 const MODO_MAPS = { carro: 'driving', moto: 'driving', transporte: 'transit', bike: 'bicycling', ape: 'walking' };
 
 const Trajetos = {
@@ -53,42 +54,50 @@ registrar({
     const c = T.calc, rc = db.rotas.find(r => r.id === c.rotaId);
     const saidaCalc = rc && c.chegada ? hhmm(minutos(c.chegada) - rc.duracao - (db.config.folga || 0)) : null;
 
-    return `<div class="topo"><h1>🚗 Trajetos</h1>
-        <button data-acao="novoLocal">+ Local</button><button class="primary" data-acao="novaRota">+ Trajeto</button></div>
-      <div class="grid2">
-        <section class="card"><h2>Deslocamentos de hoje e amanhã</h2>
-          <ul class="lista">${desloc.map(x => `<li>
-            <div class="info"><div class="nome">${esc(x.ev.titulo)}</div>
-              <div class="sub">${rotuloDia(x.iso)} às ${x.ev.inicio} · ${esc(x.r.nome)} (${x.r.duracao} min + ${db.config.folga || 0} de folga)</div></div>
-            <span class="valor">sair ${x.s}</span>
-            <a class="btn mini" href="${T.linkMaps(x.r)}" target="_blank" rel="noopener">Maps</a></li>`).join('')
-            || '<div class="vazio">Nenhum evento com trajeto. Ao criar um evento na Agenda, escolha um trajeto para receber o aviso de "hora de sair".</div>'}</ul>
-          <h2 class="mt">⏱️ Que horas preciso sair?</h2>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-            <select data-muda="calcRota"><option value="">Escolha o trajeto</option>${db.rotas.map(r =>
-              `<option value="${r.id}"${r.id === c.rotaId ? ' selected' : ''}>${esc(r.nome)}</option>`).join('')}</select>
-            <span>chegar às</span><input type="time" value="${c.chegada}" data-muda="calcHora">
-          </div>
-          ${saidaCalc ? `<p style="margin:10px 0 0">Saia às <b class="grande" style="font-size:22px">${saidaCalc}</b>
-            <span class="muted">(${rc.duracao} min de trajeto + ${db.config.folga || 0} min de folga)</span></p>` : ''}
-        </section>
+    const link = (href, rotulo) => `<a class="btn mini" href="${esc(href)}" target="_blank" rel="noopener">${rotulo}</a>`;
 
-        <section class="card"><h2>Trajetos salvos</h2>
-          <ul class="lista">${db.rotas.map(r => `<li>
-            <div class="info"><div class="nome">${esc(r.nome)}</div>
-              <div class="sub">${esc(r.origem)} → ${esc(r.destino)} · ${T.modo(r)} · ~${r.duracao} min${r.notas ? '<br>' + esc(r.notas) : ''}</div></div>
-            <a class="btn mini" href="${T.linkMaps(r)}" target="_blank" rel="noopener">Maps</a>
-            ${['carro', 'moto'].includes(r.modo) ? `<a class="btn mini" href="${T.linkWaze(r)}" target="_blank" rel="noopener">Waze</a>` : ''}
-            <button class="icon" data-acao="eventoRota" data-id="${r.id}" title="Criar evento com este trajeto">📅</button>
-            <button class="icon" data-acao="editarRota" data-id="${r.id}" title="Editar">✎</button></li>`).join('')
-            || '<div class="vazio">Cadastre seus trajetos frequentes (casa → trabalho, academia...).</div>'}</ul>
-          <h2 class="mt">📍 Locais</h2>
-          <ul class="lista">${db.locais.map(l => `<li>
-            <div class="info"><div class="nome">${esc(l.nome)}</div><div class="sub">${esc(l.endereco || '')}</div></div>
-            <a class="btn mini" href="${T.linkBusca(l.nome)}" target="_blank" rel="noopener">Mapa</a>
-            <button class="icon" data-acao="editarLocal" data-id="${l.id}" title="Editar">✎</button></li>`).join('')
-            || '<div class="vazio">Salve endereços que você usa sempre.</div>'}</ul>
-        </section>
+    return cabecalho('Trajetos', { sub: `Folga de ${db.config.folga || 0} min somada ao tempo de cada trajeto`, acoes: `
+        <button data-acao="novoLocal">${ic('map-pin')}<span class="rotulo-opc">Novo local</span></button>
+        <button class="primary" data-acao="novaRota">${ic('plus')}<span class="rotulo-opc">Novo trajeto</span></button>` })
+      + `<div class="grid2">
+        <div>
+          <section class="card"><h2>${ic('car')} Hoje e amanhã</h2>
+            ${desloc.length ? `<ul class="lista">${desloc.map(x => `<li>
+              <div class="info"><div class="nome">${esc(x.ev.titulo)}</div>
+                <div class="sub"><span>${rotuloDia(x.iso)} às ${x.ev.inicio}</span><span>${esc(x.r.nome)} · ${x.r.duracao} min</span></div></div>
+              <div style="text-align:right"><div class="muted" style="font-size:12px">sair às</div><b class="ehoje" style="font-size:18px">${x.s}</b></div>
+              <a class="btn icon" href="${T.linkMaps(x.r)}" target="_blank" rel="noopener" aria-label="Abrir rota no Maps" title="Abrir rota no Maps">${ic('navigation')}</a></li>`).join('')}</ul>`
+              : vazio('car', 'Nenhum deslocamento previsto. Ao criar um evento, escolha um trajeto para ser avisado da hora de sair.')}
+          </section>
+          <section class="card mt"><h2>${ic('timer')} Que horas preciso sair?</h2>
+            <div class="campos">
+              <label class="campo"><span class="rot">Trajeto</span><select data-muda="calcRota"><option value="">Escolha...</option>${db.rotas.map(r =>
+                `<option value="${r.id}"${r.id === c.rotaId ? ' selected' : ''}>${esc(r.nome)}</option>`).join('')}</select></label>
+              <label class="campo"><span class="rot">Chegar às</span><input type="time" value="${c.chegada}" data-muda="calcHora"></label>
+            </div>
+            ${saidaCalc ? `<div class="aviso" style="margin:14px 0 0">${ic('clock')}<span>Saia às <b style="font-size:20px">${saidaCalc}</b></span>
+              <span class="muted">${rc.duracao} min de trajeto + ${db.config.folga || 0} de folga</span></div>` : ''}
+          </section>
+        </div>
+
+        <div>
+          <section class="card"><h2>${ic('route')} Trajetos salvos</h2>
+            ${db.rotas.length ? `<ul class="lista">${db.rotas.map(r => `<li>
+              <span class="muted">${ic(ICONE_MODO[r.modo] || 'car')}</span>
+              <div class="info" data-acao="editarRota" data-id="${r.id}" style="cursor:pointer"><div class="nome">${esc(r.nome)}</div>
+                <div class="sub"><span>${esc(r.origem)} → ${esc(r.destino)}</span><span>~${r.duracao} min</span></div>
+                ${r.notas ? `<div class="sub">${esc(r.notas)}</div>` : ''}</div>
+              ${link(T.linkMaps(r), 'Maps')}${['carro', 'moto'].includes(r.modo) ? link(T.linkWaze(r), 'Waze') : ''}
+              <div class="acoes-li">${bi('eventoRota', 'calendar', 'Criar evento com este trajeto', `data-id="${r.id}"`)}</div></li>`).join('')}</ul>`
+              : vazio('route', 'Cadastre seus trajetos frequentes, como casa → trabalho ou academia.', `<button class="mini" data-acao="novaRota">${ic('plus', 'ic-sm')} Novo trajeto</button>`)}
+          </section>
+          <section class="card mt"><h2>${ic('map-pin')} Locais</h2>
+            ${db.locais.length ? `<ul class="lista">${db.locais.map(l => `<li>
+              <div class="info" data-acao="editarLocal" data-id="${l.id}" style="cursor:pointer"><div class="nome">${esc(l.nome)}</div><div class="sub">${esc(l.endereco || '')}</div></div>
+              <a class="btn icon" href="${T.linkBusca(l.nome)}" target="_blank" rel="noopener" aria-label="Ver no mapa" title="Ver no mapa">${ic('map')}</a></li>`).join('')}</ul>`
+              : vazio('map-pin', 'Salve endereços que você usa sempre.', `<button class="mini" data-acao="novoLocal">${ic('plus', 'ic-sm')} Novo local</button>`)}
+          </section>
+        </div>
       </div>`;
   },
   acoes: {

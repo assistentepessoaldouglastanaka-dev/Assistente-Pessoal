@@ -50,9 +50,9 @@ const Financas = {
     crud({
       lista: db.financas.variaveis, item: v, titulos: ['Novo gasto', 'Editar gasto'], valores: v ? null : valores,
       campos: [
-        { nome: 'nome', rotulo: 'Descrição', obrigatorio: true, dica: 'Ex.: Mercado' },
+        { nome: 'nome', rotulo: 'Descrição', obrigatorio: true, largo: true, dica: 'Ex.: Mercado' },
         { nome: 'valor', rotulo: 'Valor (R$)', tipo: 'number', min: 0, obrigatorio: true },
-        { nome: 'categoria', rotulo: 'Categoria', tipo: 'select', opcoes: CATEGORIAS, padrao: valores?.categoria },
+        { nome: 'categoria', rotulo: 'Categoria', tipo: 'select', opcoes: CATEGORIAS, padrao: valores?.categoria || 'Alimentação' },
         { nome: 'data', rotulo: 'Data', tipo: 'date', obrigatorio: true, padrao: valores?.data || hoje() },
       ],
       depois: g => { Financas.mes = g.data.slice(0, 7); aoSalvar?.(g); },
@@ -100,70 +100,73 @@ registrar({
     if (r.td) cats['Dívidas / parcelas'] = r.td;
     const catList = Object.entries(cats).sort((a, b) => b[1] - a[1]);
     const pct = r.renda ? Math.min(100, r.total / r.renda * 100) : 0;
+    const ehMesAtual = mes === chaveMes(new Date());
+    const pagoFixos = soma(r.fixos.filter(f => f.pagos?.[mes]), 'valor');
 
-    return `<div class="topo"><h1>💰 Finanças</h1>
-        <button data-acao="mesAnt" title="Mês anterior">◀</button>
-        <strong style="min-width:150px;text-align:center">${nomeMes(mes)}</strong>
-        <button data-acao="mesProx" title="Próximo mês">▶</button>
-        <button data-acao="mesHoje">Hoje</button></div>
-
-      <div class="tiles">
-        <div class="card tile"><div class="lbl">Renda do mês</div>
-          <input type="number" step="0.01" min="0" placeholder="0,00" value="${r.renda || ''}" data-muda="renda"></div>
-        <div class="card tile"><div class="lbl">Gastos fixos</div><div class="val">${brl.format(r.tf)}</div></div>
-        <div class="card tile"><div class="lbl">Gastos variáveis</div><div class="val">${brl.format(r.tv)}</div></div>
-        <div class="card tile"><div class="lbl">Parcelas / dívidas</div><div class="val">${brl.format(r.td)}</div></div>
-        <div class="card tile"><div class="lbl">Saldo</div><div class="val ${r.saldo < 0 ? 'neg' : 'pos'}">${brl.format(r.saldo)}</div>
-          ${r.renda ? `<div class="bar ${pct > 90 ? 'alerta' : ''}"><div style="width:${pct}%"></div></div>` : ''}</div>
+    return cabecalho('Finanças', { acoes: `
+        <div class="grupo-botoes" role="group" aria-label="Mês">
+          <button data-acao="mesAnt" aria-label="Mês anterior">${ic('chevron-left')}</button>
+          <button data-acao="mesHoje" style="min-width:150px" title="Voltar para o mês atual">${nomeMes(mes)}</button>
+          <button data-acao="mesProx" aria-label="Próximo mês">${ic('chevron-right')}</button>
+        </div>
+        <button class="primary" data-acao="novoVar">${ic('plus')}<span class="rotulo-opc">Novo gasto</span></button>` })
+      + `<div class="tiles">
+        <div class="card tile destaque"><div class="lbl">${ic('wallet', 'ic-sm')} Saldo ${ehMesAtual ? 'previsto' : 'do mês'}</div>
+          <div class="val">${brl.format(r.saldo)}</div>
+          ${r.renda ? `<div class="bar"><div style="width:${pct}%"></div></div><small>${Math.round(pct)}% da renda comprometida</small>` : '<small>Informe a renda do mês ao lado</small>'}</div>
+        <label class="card tile"><span class="lbl">${ic('banknote', 'ic-sm')} Renda do mês</span>
+          <input type="number" step="0.01" min="0" inputmode="decimal" placeholder="0,00" value="${r.renda || ''}" data-muda="renda" aria-label="Renda do mês"></label>
+        <div class="card tile"><div class="lbl">${ic('repeat', 'ic-sm')} Fixos</div><div class="val">${brl.format(r.tf)}</div></div>
+        <div class="card tile"><div class="lbl">${ic('shopping-bag', 'ic-sm')} Variáveis</div><div class="val">${brl.format(r.tv)}</div></div>
+        <div class="card tile"><div class="lbl">${ic('landmark', 'ic-sm')} Parcelas</div><div class="val">${brl.format(r.td)}</div></div>
       </div>
 
       <div class="grid2">
-        <section class="card"><h2><span class="dot" style="background:var(--roxo)"></span> Gastos fixos<span class="sp"></span>
-          <button class="mini primary" data-acao="novoFixo">+ Fixo</button></h2>
-          <ul class="lista">${r.fixos.map(f => {
+        <section class="card"><h2>${ic('repeat')} Gastos fixos<span class="sp"></span>${bi('novoFixo', 'plus', 'Novo gasto fixo')}</h2>
+          ${r.fixos.length ? `<ul class="lista">${r.fixos.map(f => {
             const pago = !!f.pagos?.[mes];
             return `<li class="${pago ? 'feito' : ''}">
-              <input type="checkbox" data-acao="pagarFixo" data-id="${f.id}"${pago ? ' checked' : ''} title="Marcar como pago">
-              <div class="info"><div class="nome">${esc(f.nome)}</div>
-                <div class="sub">${esc(f.categoria)}${f.dia ? ' · vence dia ' + f.dia : ''}</div></div>
+              <input type="checkbox" data-acao="pagarFixo" data-id="${f.id}"${pago ? ' checked' : ''} aria-label="Pago: ${esc(f.nome)}">
+              <div class="info clicavel" data-acao="editarFixo" data-id="${f.id}"><div class="nome">${esc(f.nome)}</div>
+                <div class="sub"><span>${esc(f.categoria)}</span>${f.dia ? `<span>vence dia ${f.dia}</span>` : ''}</div></div>
               <span class="valor">${brl.format(f.valor)}</span>
-              <button class="icon" data-acao="editarFixo" data-id="${f.id}" title="Editar">✎</button>
-              <button class="icon del" data-acao="removerFixo" data-id="${f.id}" title="Remover a partir deste mês">✕</button></li>`;
-          }).join('') || '<div class="vazio">Nenhum gasto fixo. Os fixos se repetem todo mês automaticamente.</div>'}</ul>
-          <div class="total"><span>Pago <span class="muted" style="font-weight:400">${brl.format(soma(r.fixos.filter(f => f.pagos?.[mes]), 'valor'))} de</span></span><span>${brl.format(r.tf)}</span></div>
+              <div class="acoes-li">${bi('editarFixo', 'pencil', 'Editar', `data-id="${f.id}"`, 'so-desktop')}${bi('removerFixo', 'trash-2', 'Remover a partir deste mês', `data-id="${f.id}"`).replace('class="icon"', 'class="icon del"')}</div></li>`;
+          }).join('')}</ul>
+          <div class="total"><span>Pago <span class="muted" style="font-weight:400">${brl.format(pagoFixos)} de</span></span><span>${brl.format(r.tf)}</span></div>`
+          : vazio('repeat', 'Aluguel, contas, assinaturas... Os fixos se repetem todo mês sozinhos.', `<button class="mini" data-acao="novoFixo">${ic('plus', 'ic-sm')} Novo gasto fixo</button>`)}
         </section>
 
-        <section class="card"><h2><span class="dot" style="background:var(--warn)"></span> Gastos variáveis<span class="sp"></span>
-          <button class="mini primary" data-acao="novoVar">+ Gasto</button></h2>
-          <ul class="lista">${r.vars.map(v => `<li>
-              <div class="info"><div class="nome">${esc(v.nome)}</div>
-                <div class="sub">${esc(v.categoria)} · ${fmtData(v.data)}</div></div>
+        <section class="card"><h2>${ic('shopping-bag')} Gastos variáveis<span class="sp"></span>${bi('novoVar', 'plus', 'Novo gasto')}</h2>
+          ${r.vars.length ? `<ul class="lista">${r.vars.map(v => `<li>
+              <div class="info clicavel" data-acao="editarVar" data-id="${v.id}"><div class="nome">${esc(v.nome)}</div>
+                <div class="sub"><span>${esc(v.categoria)}</span><span>${rotuloDia(v.data)}</span></div></div>
               <span class="valor">${brl.format(v.valor)}</span>
-              <button class="icon" data-acao="editarVar" data-id="${v.id}" title="Editar">✎</button></li>`).join('')
-            || '<div class="vazio">Nenhum gasto variável neste mês.</div>'}</ul>
-          <div class="total"><span>Total</span><span>${brl.format(r.tv)}</span></div>
+              <div class="acoes-li">${bi('editarVar', 'pencil', 'Editar', `data-id="${v.id}"`, 'so-desktop')}</div></li>`).join('')}</ul>
+          <div class="total"><span>Total</span><span>${brl.format(r.tv)}</span></div>`
+          : vazio('shopping-bag', 'Nenhum gasto variável neste mês.', `<button class="mini" data-acao="novoVar">${ic('plus', 'ic-sm')} Lançar gasto</button>`)}
         </section>
 
-        <section class="card"><h2><span class="dot" style="background:var(--bad)"></span> Dívidas e financiamentos<span class="sp"></span>
-          <button class="mini primary" data-acao="novaDivida">+ Dívida</button></h2>
-          <ul class="lista">${r.divs.map(d => {
+        <section class="card"><h2>${ic('landmark')} Dívidas e financiamentos<span class="sp"></span>${bi('novaDivida', 'plus', 'Nova dívida')}</h2>
+          ${r.divs.length ? `<ul class="lista">${r.divs.map(d => {
             const pago = !!d.pagos?.[mes];
             const rest = F.restante(d);
+            const n = F.numParcela(d, mes);
             return `<li class="${pago ? 'feito' : ''}">
-              <input type="checkbox" data-acao="pagarDivida" data-id="${d.id}"${pago ? ' checked' : ''} title="Marcar parcela como paga">
-              <div class="info"><div class="nome">${esc(d.nome)}</div>
-                <div class="sub">${esc(d.tipo || '')} · parcela ${F.numParcela(d, mes)}/${d.total}${d.dia ? ' · dia ' + d.dia : ''}${rest !== null ? ' · falta ' + brl.format(rest) : ''}</div></div>
+              <input type="checkbox" data-acao="pagarDivida" data-id="${d.id}"${pago ? ' checked' : ''} aria-label="Parcela paga: ${esc(d.nome)}">
+              <div class="info clicavel" data-acao="editarDivida" data-id="${d.id}"><div class="nome">${esc(d.nome)}</div>
+                <div class="sub"><span>Parcela ${n}/${d.total}</span>${d.dia ? `<span>dia ${d.dia}</span>` : ''}${rest !== null ? `<span>falta ${brl.format(rest)}</span>` : ''}</div>
+                <div class="bar" style="height:5px"><div style="width:${Math.min(100, (n - (pago ? 0 : 1)) / d.total * 100)}%;background:var(--ok)"></div></div></div>
               <span class="valor">${brl.format(d.parcela)}</span>
-              <button class="icon" data-acao="amortizar" data-id="${d.id}" title="Registrar amortização">💸</button>
-              <button class="icon" data-acao="editarDivida" data-id="${d.id}" title="Editar">✎</button></li>`;
-          }).join('') || '<div class="vazio">Nenhuma parcela neste mês.</div>'}</ul>
-          <div class="total"><span>Total do mês</span><span>${brl.format(r.td)}</span></div>
+              <div class="acoes-li">${bi('amortizar', 'piggy-bank', 'Registrar amortização', `data-id="${d.id}"`)}${bi('editarDivida', 'pencil', 'Editar', `data-id="${d.id}"`, 'so-desktop')}</div></li>`;
+          }).join('')}</ul>
+          <div class="total"><span>Total do mês</span><span>${brl.format(r.td)}</span></div>`
+          : vazio('landmark', 'Nenhuma parcela neste mês.')}
         </section>
 
-        <section class="card"><h2>Gastos por categoria</h2>
+        <section class="card"><h2>${ic('activity')} Para onde foi o dinheiro</h2>
           ${catList.map(([c, v]) => `<div class="cat">
-            <div class="top"><span>${esc(c)}</span><span>${brl.format(v)} <span class="muted">(${Math.round(v / r.total * 100)}%)</span></span></div>
-            <div class="bar"><div style="width:${v / r.total * 100}%"></div></div></div>`).join('') || '<div class="vazio">Sem gastos neste mês.</div>'}
+            <div class="top"><span>${esc(c)}</span><span>${brl.format(v)} <span class="muted">· ${Math.round(v / r.total * 100)}%</span></span></div>
+            <div class="bar"><div style="width:${v / r.total * 100}%"></div></div></div>`).join('') || vazio('activity', 'Sem gastos neste mês.')}
         </section>
       </div>`;
   },
@@ -184,13 +187,15 @@ registrar({
       if (el.checked) f.pagos[Financas.mes] = true; else delete f.pagos[Financas.mes];
       ok();
     },
-    removerFixo(d) {
+    async removerFixo(d) {
       const f = db.financas.fixos.find(x => x.id === d.id);
       const anterior = somaMes(Financas.mes, -1);
-      if (!confirm(`Remover "${f.nome}" a partir deste mês? Os meses anteriores continuam com ele.`)) return;
-      if (f.inicio > anterior) db.financas.fixos.splice(db.financas.fixos.indexOf(f), 1);
-      else f.fim = anterior;
-      ok('Gasto fixo removido');
+      if (!await confirmar(`"${f.nome}" deixa de aparecer a partir de ${nomeMes(Financas.mes).toLowerCase()}. Os meses anteriores continuam com ele.`,
+        { titulo: 'Remover gasto fixo', ok: 'Remover', perigo: true })) return;
+      const lista = db.financas.fixos, i = lista.indexOf(f), fimAntes = f.fim;
+      if (f.inicio > anterior) lista.splice(i, 1); else f.fim = anterior;
+      ok();
+      aviso('Gasto fixo removido', { texto: 'Desfazer', fn: () => { if (!lista.includes(f)) lista.splice(i, 0, f); f.fim = fimAntes; ok(); } });
     },
     novoVar() {
       const m = Financas.mes, h = hoje();

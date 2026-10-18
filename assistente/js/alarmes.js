@@ -135,7 +135,17 @@ const Alarmes = {
         v.ativo = true;
         v.data = v.dias.length ? null : (minutos(v.hora) > agoraMin() ? hoje() : somaDias(hoje(), 1));
       },
+      depois: x => setTimeout(() => aviso(Alarmes.emQuanto(x)), 50),
     });
+  },
+  // "Toca em 7 h 30 min", como no relógio do celular
+  emQuanto(a) {
+    const o = this.proximaOcorrencia(a);
+    if (!o) return 'Alarme ligado';
+    const [y, m, d] = o.iso.split('-').map(Number), [hh, mm] = o.hora.split(':').map(Number);
+    const min = Math.max(1, Math.round((new Date(y, m - 1, d, hh, mm) - Date.now()) / 60000));
+    const dias = Math.floor(min / 1440), h = Math.floor(min % 1440 / 60), r = min % 60;
+    return 'Toca em ' + [dias && `${dias} d`, h && `${h} h`, r && `${r} min`].filter(Boolean).join(' ');
   },
   descricaoDias(a) {
     if (!a.dias?.length) return a.data ? 'Uma vez · ' + rotuloDia(a.data) : 'Uma vez';
@@ -154,28 +164,30 @@ registrar({
     const perm = 'Notification' in window ? Notification.permission : 'indisponivel';
     const lista = [...db.alarmes].sort((a, b) => a.hora.localeCompare(b.hora));
     const lemb = A.lembretesDoDia(hoje()), agora = hhmm(agoraMin());
-    return `<div class="topo"><h1>⏰ Alarmes</h1><button data-acao="testar">🔊 Testar som</button>
-        <button class="primary" data-acao="novo">+ Novo alarme</button></div>
-      ${Nativo.ativo ? `<div class="aviso">📱 No app Android, alarmes e lembretes tocam mesmo com o app fechado
-          (${Nativo.agendados} agendados para os próximos 7 dias).
-          ${Nativo.permissao !== 'granted' || Nativo.exato !== 'granted' ? '<button class="mini primary" data-acao="permitirNativo">Permitir notificações e alarmes</button>' : ''}</div>` : `
-      <div class="aviso">ℹ️ Os alarmes tocam enquanto este app estiver aberto em uma aba do navegador (pode ficar minimizada).
-        ${perm === 'default' ? '<button class="mini primary" data-acao="permitir">Ativar notificações</button>' : ''}
-        ${perm === 'denied' ? '<b>Notificações bloqueadas no navegador — o alarme toca só dentro do app.</b>' : ''}</div>`}
-      <div class="grid2">
-        <section class="card"><h2>Meus alarmes</h2>
-          ${lista.map(a => `<div class="al ${a.ativo ? '' : 'off'}">
-            <div class="h">${a.hora}</div>
-            <div class="info"><div style="font-weight:600">${esc(a.rotulo || 'Alarme')}</div><div class="muted" style="font-size:13px">${A.descricaoDias(a)}</div></div>
-            <button class="switch ${a.ativo ? 'on' : ''}" data-acao="alternar" data-id="${a.id}" title="Ligar/desligar"></button>
-            <button class="icon" data-acao="editar" data-id="${a.id}" title="Editar">✎</button></div>`).join('')
-            || '<div class="vazio">Nenhum alarme.</div>'}
+    const proximo = A.proximos(1)[0];
+    return cabecalho('Alarmes', {
+        sub: proximo ? `Próximo: ${esc(proximo.a.rotulo || 'Alarme')} · ${rotuloDia(proximo.o.iso).toLowerCase()} às ${proximo.o.hora}` : '',
+        acoes: `<button data-acao="testar">${ic('bell-ring')}<span class="rotulo-opc">Testar som</span></button>
+          <button class="primary" data-acao="novo">${ic('plus')}<span class="rotulo-opc">Novo alarme</span></button>` })
+      + (Nativo.ativo ? `<div class="aviso">${ic('smartphone')}<span>Alarmes e lembretes tocam mesmo com o app fechado · ${Nativo.agendados} agendados para os próximos 7 dias.</span>
+          ${Nativo.permissao !== 'granted' || Nativo.exato !== 'granted' ? '<button class="mini primary" data-acao="permitirNativo">Permitir notificações e alarmes</button>' : ''}</div>`
+        : `<div class="aviso">${ic('info')}<span>Neste navegador os alarmes tocam com o app aberto em alguma aba (pode ficar minimizada). No celular, use o app Android.</span>
+          ${perm === 'default' ? '<button class="mini primary" data-acao="permitir">Ativar notificações</button>' : ''}
+          ${perm === 'denied' ? '<b>Notificações bloqueadas no navegador: o alarme toca só dentro do app.</b>' : ''}</div>`)
+      + `<div class="grid2">
+        <section class="card"><h2>${ic('alarm-clock')} Meus alarmes</h2>
+          ${lista.length ? lista.map(a => `<div class="al ${a.ativo ? '' : 'off'}">
+            <div class="h" data-acao="editar" data-id="${a.id}" style="cursor:pointer">${a.hora}</div>
+            <div class="info" data-acao="editar" data-id="${a.id}" style="cursor:pointer"><div style="font-weight:600">${esc(a.rotulo || 'Alarme')}</div><div class="muted" style="font-size:13px">${A.descricaoDias(a)}</div></div>
+            <button class="switch ${a.ativo ? 'on' : ''}" data-acao="alternar" data-id="${a.id}" role="switch" aria-checked="${a.ativo}" aria-label="${a.ativo ? 'Desligar' : 'Ligar'} ${esc(a.rotulo || 'alarme')}"></button></div>`).join('')
+            : vazio('alarm-clock', 'Nenhum alarme ainda.', `<button class="mini" data-acao="novo">${ic('plus', 'ic-sm')} Novo alarme</button>`)}
         </section>
-        <section class="card"><h2>Lembretes automáticos de hoje</h2>
-          <ul class="lista">${lemb.map(l => `<li class="${l.hora < agora ? 'feito' : ''}">
-            <div class="hora" style="width:52px;font-weight:650">${l.hora}</div>
-            <div class="info"><div class="nome">${esc(l.titulo)}</div><div class="sub">${esc(l.texto)}</div></div></li>`).join('')
-            || '<div class="vazio">Eventos com lembrete, horários de saída e contas que vencem hoje aparecem aqui.</div>'}</ul>
+        <section class="card"><h2>${ic('bell')} Lembretes automáticos de hoje</h2>
+          ${lemb.length ? `<ul class="lista">${lemb.map(l => `<li class="${l.hora < agora ? 'feito' : ''}">
+            <div class="hora" style="width:52px;font-weight:650;font-variant-numeric:tabular-nums">${l.hora}</div>
+            <span class="muted">${ic(ICONE_LEMBRETE[l.chave.split(':')[0]] || 'bell')}</span>
+            <div class="info"><div class="nome">${esc(semEmoji(l.titulo))}</div><div class="sub">${esc(l.texto)}</div></div></li>`).join('')}</ul>`
+            : vazio('bell', 'Eventos com lembrete, horários de saída e contas que vencem hoje aparecem aqui sozinhos.')}
         </section>
       </div>`;
   },
@@ -186,7 +198,7 @@ registrar({
       const a = db.alarmes.find(x => x.id === d.id);
       a.ativo = !a.ativo;
       if (a.ativo && !a.dias?.length) a.data = minutos(a.hora) > agoraMin() ? hoje() : somaDias(hoje(), 1);
-      ok(a.ativo ? 'Alarme ligado' : 'Alarme desligado');
+      ok(a.ativo ? Alarmes.emQuanto(a) : 'Alarme desligado');
     },
     testar() { Alarmes.bip(); },
     permitirNativo() { Nativo.pedirPermissoes(); },

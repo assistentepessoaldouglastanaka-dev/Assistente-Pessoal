@@ -50,7 +50,7 @@ const Google = {
       let motivo = '';
       try { motivo = (await error.context.json()).erro; } catch (e) {}
       this.erro = ['reconectar', 'sem_token'].includes(motivo)
-        ? 'O acesso ao Google expirou. Vá em Geral → Sair e entre de novo com o Google.'
+        ? 'O acesso ao Google expirou. Vá em Notas e ajustes → Sair e entre de novo com o Google.'
         : 'Não foi possível falar com o Google agora.';
       throw new Error(this.erro);
     }
@@ -189,12 +189,12 @@ const GAgenda = {
       await Google.api(gid ? `${CAL}/${encodeURIComponent(gid)}` : CAL, { metodo, corpo });
       await this.carregar();
       Google.render();
-      aviso(metodo === 'DELETE' ? 'Excluído do Google Agenda' : 'Salvo no Google Agenda ✔');
+      aviso(metodo === 'DELETE' ? 'Excluído do Google Agenda' : 'Salvo no Google Agenda');
     } catch (e) { aviso('Erro: ' + e.message); }
   },
   async enviarLocais() {
     const n = db.eventos.length;
-    if (!confirm(`Enviar ${n} evento(s) do app para o seu Google Agenda? Depois disso eles passam a ficar só no Google.`)) return;
+    if (!await confirmar(`${n} evento(s) criados no app vão para o seu Google Agenda e passam a ficar só lá.`, { titulo: 'Enviar ao Google Agenda', ok: 'Enviar' })) return;
     aviso('Enviando eventos ao Google...');
     let ok = 0;
     for (const ev of [...db.eventos]) {
@@ -207,7 +207,7 @@ const GAgenda = {
     salvar();
     await this.carregar();
     render();
-    aviso(ok === n ? `${ok} evento(s) enviados ✔` : `${ok} de ${n} enviados — tente de novo para os demais`);
+    aviso(ok === n ? `${ok} evento(s) enviados` : `${ok} de ${n} enviados — tente de novo para os demais`);
   },
 };
 
@@ -382,36 +382,37 @@ registrar({
   id: 'gmail', nome: 'Gmail', icone: '📧',
   render() {
     const G = GGmail;
-    if (!Google.conectado()) return `<div class="topo"><h1>📧 Gmail</h1></div>
-      <div class="card"><p class="muted" style="margin:0">Entre com sua conta Google em <a href="#geral">Geral</a> para ver seus e-mails aqui.</p></div>`;
+    if (!Google.conectado()) return cabecalho('Gmail') + `<div class="card">${vazio('mail', 'Entre com sua conta Google para ver seus e-mails aqui.',
+      `<a class="btn primary" href="#geral">${ic('log-in')} Entrar com Google</a>`)}</div>`;
     if (!G.listas.importantes && !G.carregando && !G.erro) setTimeout(() => G.carregar(), 0);
 
     const item = (m, tipo) => {
       const usado = G.usado(m.id);
       return `<li class="${usado ? 'feito' : ''}"><div class="info">
           <div class="nome">${esc(m.assunto)}</div>
-          <div class="sub">${esc(m.de)} · ${rotuloDia(m.data)}${m.valor ? ` · <b>${brl.format(m.valor)}</b>` : ''}${m.vencimento ? ` · vence ${fmtData(m.vencimento)}` : ''}</div>
-          <div class="sub">${esc(m.trecho.slice(0, 140))}</div></div>
-        <div style="display:flex;flex-direction:column;gap:4px">
+          <div class="sub"><span>${esc(m.de)}</span><span>${rotuloDia(m.data)}</span>${m.valor ? `<b class="chip azul">${brl.format(m.valor)}</b>` : ''}${m.vencimento ? `<span>vence ${fmtData(m.vencimento)}</span>` : ''}</div>
+          <div class="sub" style="display:block;margin-top:3px">${esc(m.trecho.slice(0, 140))}</div>
+          <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
           ${tipo === 'conta'
-            ? `<button class="mini${usado ? '' : ' primary'}" data-acao="gasto" data-id="${m.id}">${usado ? '✔ Lançado' : '💸 Lançar gasto'}</button>`
-            : `<button class="mini" data-acao="tarefa" data-area="trabalho" data-id="${m.id}" title="Criar tarefa do trabalho">💼 Tarefa</button>
-               <button class="mini" data-acao="tarefa" data-area="pessoal" data-id="${m.id}" title="Criar tarefa pessoal">✅ Tarefa</button>`}
-          <a class="btn mini" href="${G.link(m)}" target="_blank" rel="noopener">Abrir ↗</a></div></li>`;
+            ? `<button class="mini${usado ? '' : ' primary'}" data-acao="gasto" data-id="${m.id}">${ic(usado ? 'check' : 'receipt', 'ic-sm')} ${usado ? 'Lançado' : 'Lançar gasto'}</button>`
+            : `<button class="mini" data-acao="tarefa" data-area="pessoal" data-id="${m.id}">${ic('list-checks', 'ic-sm')} Tarefa pessoal</button>
+               <button class="mini" data-acao="tarefa" data-area="trabalho" data-id="${m.id}">${ic('briefcase', 'ic-sm')} Tarefa do trabalho</button>`}
+          <a class="btn mini fantasma" href="${G.link(m)}" target="_blank" rel="noopener">${ic('external-link', 'ic-sm')} Abrir</a></div></div></li>`;
     };
-    const lista = (ms, tipo, vazio) => G.carregando && !ms ? '<div class="vazio">Carregando...</div>'
-      : `<ul class="lista">${(ms || []).map(m => item(m, tipo)).join('') || `<div class="vazio">${vazio}</div>`}</ul>`;
+    const carregando = '<div class="esqueleto"></div><div class="esqueleto" style="width:70%"></div><div class="esqueleto" style="width:85%"></div>';
+    const lista = (ms, tipo, icone, textoVazio) => G.carregando && !ms ? carregando
+      : ms?.length ? `<ul class="lista">${ms.map(m => item(m, tipo)).join('')}</ul>` : vazio(icone, textoVazio);
 
-    return `<div class="topo"><h1>📧 Gmail</h1>
-        <input type="search" placeholder="Buscar no Gmail (ex.: from:banco)" value="${esc(G.consulta)}" data-muda="buscar" style="min-width:220px">
-        <button data-acao="atualizar">${G.carregando ? '⏳' : '🔄'} Atualizar</button></div>
-      ${G.erro ? `<div class="aviso">⚠️ ${esc(G.erro)}</div>` : ''}
-      ${G.consulta ? `<section class="card" style="margin-bottom:14px"><h2>🔎 Resultado: ${esc(G.consulta)}<span class="sp"></span>
-          <button class="mini" data-acao="limparBusca">Limpar</button></h2>${lista(G.listas.busca, 'email', 'Nada encontrado.')}</section>` : ''}
+    return cabecalho('Gmail', { acoes: `
+        <input type="search" placeholder="Buscar (ex.: from:banco)" value="${esc(G.consulta)}" data-muda="buscar" aria-label="Buscar no Gmail" style="min-width:200px">
+        ${bi('atualizar', 'refresh-cw', 'Atualizar')}` })
+      + `${G.erro ? `<div class="aviso laranja">${ic('circle-alert')} ${esc(G.erro)}</div>` : ''}
+      ${G.consulta ? `<section class="card" style="margin-bottom:16px"><h2>${ic('search')} ${esc(G.consulta)}<span class="sp"></span>
+          ${bi('limparBusca', 'x', 'Limpar busca')}</h2>${lista(G.listas.busca, 'email', 'search', 'Nada encontrado.')}</section>` : ''}
       <div class="grid2">
-        <section class="card"><h2>📌 Importantes não lidos</h2>${lista(G.listas.importantes, 'email', 'Nenhum e-mail importante pendente 🎉')}</section>
-        <section class="card"><h2>💰 Contas e boletos (45 dias)</h2>${lista(G.listas.contas, 'conta', 'Nenhuma conta encontrada.')}
-          <p class="muted" style="font-size:12px;margin:10px 0 0">O valor é lido do resumo do e-mail; confira antes de salvar.</p></section>
+        <section class="card"><h2>${ic('inbox')} Importantes não lidos</h2>${lista(G.listas.importantes, 'email', 'inbox', 'Nenhum e-mail importante pendente.')}</section>
+        <section class="card"><h2>${ic('receipt')} Contas e boletos · 45 dias</h2>${lista(G.listas.contas, 'conta', 'receipt', 'Nenhuma conta encontrada.')}
+          <p class="muted" style="font-size:12px;margin:10px 0 0">O valor vem do resumo do e-mail: confira antes de salvar.</p></section>
       </div>`;
   },
   acoes: {

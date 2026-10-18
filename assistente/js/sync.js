@@ -43,7 +43,7 @@ const Sync = {
     if (error) aviso('Erro ao entrar: ' + error.message);
   },
   async sair() {
-    if (!confirm('Sair da conta? Os dados continuam neste aparelho, mas param de sincronizar.')) return;
+    if (!await confirmar('Os dados continuam neste aparelho, mas param de sincronizar com os outros.', { titulo: 'Sair da conta', ok: 'Sair' })) return;
     await this.sb.auth.signOut();
   },
   async salvarTokenGoogle(sessao) {
@@ -208,14 +208,16 @@ const Sync = {
   },
   definirEstado(s) {
     this.estado = s;
-    const el = $('#syncStatus');
-    if (el) { const [ic, t] = this.rotulo(); el.textContent = ic; el.title = t; }
+    const [, texto] = this.rotulo();
+    for (const el of document.querySelectorAll('#syncPonto, #syncPontoBarra')) { el.className = 'ponto-sync ' + s; el.title = texto; }
+    const t = $('#syncTexto');
+    if (t) t.textContent = this.usuario ? (s === 'ok' ? 'Sincronizado' : texto) : (this.configurado() ? 'Não conectado' : 'Só neste aparelho');
   },
   rotulo() {
     return {
-      desligado: ['⚪', 'Sem sincronização'], arquivo: ['⚪', 'Aberto como arquivo — sem sincronização'],
-      sincronizando: ['🔄', 'Sincronizando...'], ok: ['🟢', 'Sincronizado'],
-      offline: ['🟠', 'Sem internet — as alterações serão enviadas depois'], erro: ['🔴', 'Erro na sincronização: ' + this.erro],
+      desligado: ['', 'Sem sincronização'], arquivo: ['', 'Aberto como arquivo — sem sincronização'],
+      sincronizando: ['azul', 'Sincronizando...'], ok: ['verde', 'Sincronizado'],
+      offline: ['laranja', 'Sem internet — as alterações serão enviadas depois'], erro: ['vermelho', 'Erro na sincronização: ' + this.erro],
     }[this.estado];
   },
 };

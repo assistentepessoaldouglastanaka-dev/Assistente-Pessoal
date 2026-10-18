@@ -14,7 +14,7 @@ window.addEventListener('hashchange', () => {
 // PWA: service worker (offline + notificações) e botão "Instalar app"
 if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); App.instalar = e; render(); });
-window.addEventListener('appinstalled', () => { App.instalar = null; App.instalado = true; render(); aviso('App instalado ✔'); });
+window.addEventListener('appinstalled', () => { App.instalar = null; App.instalado = true; render(); aviso('App instalado'); });
 
 Sync.iniciar();
 Nativo.iniciar();
@@ -24,15 +24,19 @@ Sync.definirEstado(Sync.estado);
 Alarmes.verificar();
 setInterval(() => Alarmes.verificar(), 10000);
 document.addEventListener('pointerdown', () => Alarmes.audio(), { once: true });
+$('.alarme-ic').innerHTML = ic('bell-ring');
 $('#alarmeOk').onclick = () => Alarmes.dispensar(false);
 $('#alarmeSoneca').onclick = () => Alarmes.dispensar(true);
 
 // Mantém horários do Início/Alarmes atualizados sem atrapalhar quem está digitando
 setInterval(() => {
-  if (!['inicio', 'alarmes'].includes(atual) || $('#modal').open) return;
+  if (!['inicio', 'alarmes'].includes(atual) || document.querySelector('dialog[open]')) return;
   if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
   render();
 }, 60000);
+
+// Barra superior do celular ganha borda ao rolar
+window.addEventListener('scroll', () => $('#barra').classList.toggle('rolou', scrollY > 4), { passive: true });
 
 // Outra aba alterou os dados
 window.addEventListener('storage', e => { if (e.key === CHAVE) { db = carregar(); render(); } });
