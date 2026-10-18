@@ -201,30 +201,48 @@ const Voz = {
     else this.rec?.abort();
   },
   // ----- Escolha da voz (cada aparelho tem as suas; a escolha fica salva só neste aparelho) -----
-  lista: [],
-  async carregarVozes() {
-    try {
-      const brutas = Nativo.ativo ? (await Nativo.P.TextToSpeech.getSupportedVoices()).voices : speechSynthesis.getVoices();
-      this.lista = brutas.map((v, idx) => ({ id: v.voiceURI || v.name, nome: v.name, lang: v.lang || '', idx }))
-        .filter(v => /^pt/i.test(v.lang.replace('_', '-')))
-        .map(v => ({ ...v, rotulo: this.rotulo(v), nota: this.pontuar(v) }))
-        .sort((a, b) => b.nota - a.nota);
-    } catch (e) { this.lista = []; }
+  // No Android a lista completa tem centenas de vozes e pode demorar: fica guardada no aparelho e
+  // é atualizada em segundo plano, sem nunca atrasar a fala.
+  lista: [], carregando: null,
+  lerCache() {
+    try { const c = JSON.parse(localStorage.getItem('assistente.vozes')); if (Array.isArray(c) && c.length) this.lista = c; } catch (e) {}
     return this.lista;
+  },
+  carregarVozes() {
+    if (this.carregando) return this.carregando;
+    this.carregando = (async () => {
+      try {
+        const brutas = Nativo.ativo ? (await Nativo.P.TextToSpeech.getSupportedVoices()).voices : speechSynthesis.getVoices();
+        const lista = brutas.map((v, idx) => ({ id: v.voiceURI || v.name, nome: v.name, lang: (v.lang || '').replace('_', '-'), idx }))
+          .filter(v => /^pt/i.test(v.lang) && !/-language$/.test(v.id))
+          .map(v => ({ ...v, rotulo: this.rotulo(v), nota: this.pontuar(v) }))
+          .sort((a, b) => b.nota - a.nota);
+        if (lista.length) {
+          this.lista = lista;
+          if (Nativo.ativo) try { localStorage.setItem('assistente.vozes', JSON.stringify(lista)); } catch (e) {}
+          if (atual === 'geral' && !document.querySelector('dialog[open]')) render();
+        }
+      } catch (e) { /* mecanismo de voz ainda iniciando: tenta de novo na próxima vez */ }
+      this.carregando = null;
+      return this.lista;
+    })();
+    return this.carregando;
   },
   // Vozes masculinas e "naturais/neurais" (as mais humanas) primeiro
   pontuar(v) {
     const n = (v.nome + ' ' + v.id).toLowerCase();
-    let p = /pt[-_]br/i.test(v.lang) ? 50 : 0;
+    let p = /pt-br/i.test(v.lang) ? 50 : 0;
     if (/antonio|daniel|thiago|f[aá]bio|donato|humberto|julio|nicolau|valerio|ricardo|male\b|masculin|homem|-x-pte/.test(n)) p += 40;
+    if (/-x-ptd/.test(n)) p += 10;
     if (/francisca|maria|luciana|vit[oó]ria|thalita|leila|brenda|elza|yara|female|feminin|mulher|-x-afs|google portugu/.test(n)) p -= 40;
     if (/natural|neural|online|enhanced|premium|network/.test(n)) p += 15;
     return p;
   },
   rotulo(v) {
-    const g = v.nome.match(/^pt-br-x-(\w+)-(local|network)/i);
-    if (g) return `Google ${g[1].toUpperCase()} · ${g[2] === 'network' ? 'online, mais natural' : 'offline'}`;
-    return v.nome.replace(/Microsoft |Google /, m => m).replace(/ - Portuguese \(Brazil\)| \(Brazil\)/i, '');
+    // Android/Google: o nome de exibição é igual para todas ("Portuguese Brazil"); o que muda é o identificador
+    const g = v.id.match(/^pt-(br|pt)-x-(\w+)-(local|network)/i);
+    if (g) return `Voz ${g[2].slice(-1).toUpperCase()}${g[1].toLowerCase() === 'pt' ? ' (Portugal)' : ''} · ${g[3] === 'network' ? 'online, mais natural' : 'offline'}`;
+    return v.nome.replace(/ - Portuguese \((Brazil|Portugal)\)| \((Brazil|Portugal)\)/i, '');
   },
   escolhida() {
     let salvo = null;
@@ -238,12 +256,20 @@ const Voz = {
   },
   async falar(texto, forcar = false) {
     if ((!db.config.jarvis.voz && !forcar) || !texto || !this.podeFalar()) return;
-    if (!this.lista.length) await this.carregarVozes();
+    if (!this.lista.length) { this.lerCache(); if (!this.lista.length) this.carregarVozes(); }  // nunca espera a lista
     const v = this.escolhida(), { rate, pitch } = this.ajustes();
     this.falando = true;
     try {
-      if (Nativo.ativo) await Nativo.P.TextToSpeech.speak({ text: texto, lang: v?.lang || 'pt-BR', rate, pitch, volume: 1, ...(v ? { voice: v.idx } : {}) });
-      else await new Promise(res => {
+      if (Nativo.ativo) {
+        const pedido = { text: texto, lang: v?.lang || 'pt-BR', rate, pitch, volume: 1, ...(v ? { voice: v.idx } : {}) };
+        try { await Nativo.P.TextToSpeech.speak(pedido); }
+        catch (e) {
+          // o mecanismo de voz do Android pode ainda estar iniciando (ou a voz escolhida sumiu): tenta de novo
+          await new Promise(r => setTimeout(r, 1500));
+          await Nativo.P.TextToSpeech.speak({ text: texto, lang: 'pt-BR', rate, pitch, volume: 1, ...(v ? { voice: v.idx } : {}) })
+            .catch(() => Nativo.P.TextToSpeech.speak({ text: texto, lang: 'pt-BR', rate, pitch, volume: 1 }));
+        }
+      } else await new Promise(res => {
         speechSynthesis.cancel();
         const u = new SpeechSynthesisUtterance(texto);
         u.lang = v?.lang || 'pt-BR'; u.rate = rate; u.pitch = pitch;
@@ -263,7 +289,9 @@ const Voz = {
 };
 // As vozes do navegador chegam depois de carregar a página
 if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = () => Voz.carregarVozes().then(() => { if (atual === 'geral' && !document.querySelector('dialog[open]')) render(); });
-setTimeout(() => Voz.carregarVozes(), 800);
+// Lista de vozes: usa a guardada na hora e atualiza em segundo plano (no Android, depois que o mecanismo de voz inicia)
+Voz.lerCache();
+setTimeout(() => Voz.carregarVozes(), window.Capacitor?.isNativePlatform?.() ? 4000 : 800);
 
 // ---------- Palavra de ativação "Jarvis" ----------
 const PALAVRA_RE = /\b(jarvis|jarv[ie]s|djarvis|j[áa]rvis|jarbas|jarvas)\b[\s,.:!]*/i;

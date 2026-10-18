@@ -8,7 +8,18 @@ const Nativo = {
   ESQUEMA: 'br.com.assistentepessoal',
   CANAL: 'alarmes',
   timer: null, assinatura: '', agendados: 0, permissao: null, exato: null,
-  get P() { return window.Capacitor?.Plugins || {}; },
+  // O app Android abre o site da Vercel: os plugins nativos precisam ser registrados pelo nome
+  // (a biblioteca @capacitor/core, em js/vendor, cria a ponte para o código nativo de cada um)
+  PLUGINS: ['App', 'LocalNotifications', 'Browser', 'StatusBar', 'SpeechRecognition', 'TextToSpeech'],
+  _p: null,
+  get P() {
+    if (this._p) return this._p;
+    const C = window.Capacitor;
+    if (!C?.registerPlugin) return C?.Plugins || {};
+    this._p = {};
+    for (const n of this.PLUGINS) this._p[n] = C.Plugins?.[n] || C.registerPlugin(n);
+    return this._p;
+  },
 
   async iniciar() {
     if (!this.ativo) return;
