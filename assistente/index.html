@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Assistente Pessoal</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="app">
+  <nav id="nav"></nav>
+  <main id="conteudo"></main>
+</div>
+
+<dialog id="modal"></dialog>
+
+<div id="alarme" hidden>
+  <div class="alarme-box">
+    <div class="alarme-ic">⏰</div>
+    <h2 id="alarmeTitulo"></h2>
+    <p id="alarmeTexto"></p>
+    <div class="alarme-acoes">
+      <button id="alarmeSoneca">Soneca 5 min</button>
+      <button class="primary" id="alarmeOk">Dispensar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/core.js"></script>
+<script src="js/sync.js"></script>
+<script src="js/inicio.js"></script>
+<script src="js/tarefas.js"></script>
+<script src="js/financas.js"></script>
+<script src="js/agenda.js"></script>
+<script src="js/trajetos.js"></script>
+<script src="js/treinos.js"></script>
+<script src="js/alarmes.js"></script>
+<script src="js/geral.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
