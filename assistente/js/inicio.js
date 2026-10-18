@@ -42,8 +42,10 @@ registrar({
         s: tr.modelo ? esc(tr.modelo.nome.split(' — ')[0]) : 'Treino de hoje' },
     ];
 
-    return `<div class="ola"><h1>${saud}${db.config.nome ? ', ' + esc(db.config.nome) : ''}</h1>
-        <p>${d.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</p></div>
+    const dataLonga = d.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+    return `<div class="jv-hero"><button data-acao="jarvis:abrir" aria-label="Falar com o Jarvis">${reator()}</button>
+        <div class="ola"><h1>${saud}, ${esc(Jarvis.tratamento())}</h1><p>${dataLonga}</p><div class="online">J.A.R.V.I.S. ONLINE</div></div></div>
+      <div class="ola so-fora-jarvis"><h1>${saud}${db.config.nome ? ', ' + esc(db.config.nome) : ''}</h1><p>${dataLonga}</p></div>
 
       <div class="resumo">${resumo.map(x => `<a href="${x.href}"><span class="bolha ${x.cor}">${ic(x.ic)}</span>
         <div><b>${x.b}</b><span>${x.s}</span></div></a>`).join('')}</div>

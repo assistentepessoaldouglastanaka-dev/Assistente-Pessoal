@@ -98,7 +98,7 @@ function folha(titulo, itens) {
 function padrao() {
   return {
     versao: 1,
-    config: { nome: '', folga: 10, tema: 'auto', ultimoBackup: null },
+    config: { nome: '', folga: 10, tema: 'auto', ultimoBackup: null, jarvis: { voz: true, palavra: false, tratamento: 'senhor' } },
     // { id, area: 'trabalho'|'pessoal', titulo, status: 'afazer'|'fazendo'|'feito', prioridade, prazo, projeto, notas, concluida }
     tarefas: [],
     // { id, nome, preco, link, prioridade, comprado, notas }
@@ -181,6 +181,7 @@ function montarNav() {
   const item = id => `<a class="item" href="#${id}" data-id="${id}">${ic(NAV.icone[id] || 'circle')}<span>${Modulos[id].nome}</span></a>`;
   $('#lateral').innerHTML = `<div class="marca"><img src="icons/icone-192.png" alt="">Assistente</div>
     <button class="primary novo" data-acao="app:novo">${ic('plus')} Novo</button>
+    <button class="bt-jarvis fantasma" data-acao="jarvis:abrir">${reator('reator-mini')} Jarvis <kbd>Alt+J</kbd></button>
     ${NAV.grupos.map(([g, ids]) => `<div class="grupo">${g}</div>${ids.filter(id => Modulos[id]).map(item).join('')}`).join('')}
     <div class="grupo"></div>${item('geral')}
     <div class="rodape"><span class="ponto-sync" id="syncPonto"></span><span id="syncTexto">Sem sincronização</span></div>`;
@@ -188,6 +189,7 @@ function montarNav() {
     ? `<a href="#" data-acao="app:mais" data-id="mais">${ic(ico)}<span>${rot}</span></a>`
     : `<a href="#${id === 'tarefas' ? ultimaTarefas : id}" data-id="${id}">${ic(ico)}<span>${rot}</span></a>`).join('');
   $('#barra').innerHTML = `<span class="titulo" id="barraTitulo"></span><span class="ponto-sync" id="syncPontoBarra"></span>
+    <button class="bt-jarvis" data-acao="jarvis:abrir" aria-label="Falar com o Jarvis">${reator()}</button>
     <a class="btn icon" href="#geral" aria-label="Configurações e conta">${ic('settings')}</a>`;
   $('#fab').innerHTML = ic('plus');
 }
@@ -353,6 +355,17 @@ function crud({ lista, item, titulos, campos, valores, preparar, podeExcluir = t
 
 function aplicarTema() {
   const t = db.config.tema;
-  if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  if (['light', 'dark', 'jarvis'].includes(t)) document.documentElement.dataset.theme = t;
   else delete document.documentElement.dataset.theme;
+  // fontes do tema Jarvis (licença OFL), carregadas só quando o tema é usado; o service worker guarda para uso offline
+  if (t === 'jarvis' && !$('#fontes-jarvis')) {
+    const base = 'https://cdn.jsdelivr.net/npm/@fontsource/';
+    for (const f of ['rajdhani@5.3.0/500.css', 'rajdhani@5.3.0/600.css', 'rajdhani@5.3.0/700.css', 'orbitron@5.3.0/500.css', 'orbitron@5.3.0/600.css']) {
+      const l = document.createElement('link');
+      l.rel = 'stylesheet'; l.href = base + f;
+      if (!$('#fontes-jarvis')) l.id = 'fontes-jarvis';
+      document.head.appendChild(l);
+    }
+  }
+  for (const m of document.querySelectorAll('meta[name=theme-color]')) m.content = t === 'jarvis' ? '#02070d' : m.media.includes('dark') ? '#0f1218' : '#f3f5f9';
 }

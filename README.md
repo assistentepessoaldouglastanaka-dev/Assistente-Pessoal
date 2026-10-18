@@ -49,3 +49,11 @@ cd android && ./gradlew assembleDebug
 
 O APK fica em `mobile/android/app/build/outputs/apk/debug/app-debug.apk`.
 No Supabase (Authentication → URL Configuration → Redirect URLs) é preciso ter `br.com.assistentepessoal://login`.
+
+## Jarvis (assistente de voz)
+
+Toque no reator, use Alt+J no computador ou diga "Jarvis" (no Chrome, se ativado em Notas e ajustes).
+Comandos comuns (gastos, tarefas, eventos, alarmes, lembretes e consultas) são entendidos por regras no próprio app: grátis e offline.
+Perguntas livres vão para a Edge Function `jarvis`, que usa a IA gratuita da Cloudflare (Workers AI, 10.000 neurons/dia).
+
+Secrets da função `jarvis` no Supabase: `CF_ACCOUNT_ID`, `CF_API_TOKEN` (permissão Workers AI) e, opcional, `CF_MODELO`.

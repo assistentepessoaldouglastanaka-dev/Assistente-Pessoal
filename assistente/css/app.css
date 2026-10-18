@@ -441,3 +441,160 @@ dialog.pequeno { width: min(400px, calc(100% - 32px)); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 
 @media (min-width: 900px) { .tiles.bio { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); } }
+
+/* ==========================================================================
+   J.A.R.V.I.S. — reator, painel de voz e tema HUD
+   ========================================================================== */
+:root { --reator-claro: #9fd8ff; }
+
+/* Reator (painel, botões e Início do tema Jarvis) */
+.reator { display: block; overflow: visible; }
+.reator .r-aro { fill: none; stroke: var(--accent); stroke-opacity: .25; stroke-width: 1.5; }
+.reator .r-seg { fill: none; stroke: var(--accent); stroke-width: 4; stroke-opacity: .85; }
+.reator .r-seg2 { fill: none; stroke: var(--accent); stroke-width: 6; stroke-opacity: .35; }
+.reator .r-raios rect { fill: var(--accent); fill-opacity: .55; }
+.reator .r-anel { fill: none; stroke: var(--accent); stroke-width: 3; }
+.reator .r-gira { transform-origin: 100px 100px; animation: girar 14s linear infinite; }
+.reator .r-gira-inv { transform-origin: 100px 100px; animation: girar 22s linear infinite reverse; }
+.reator .r-nucleo { transform-origin: 100px 100px; animation: pulsar-nucleo 3s ease-in-out infinite; }
+@keyframes girar { to { transform: rotate(360deg); } }
+@keyframes pulsar-nucleo { 50% { transform: scale(.9); opacity: .8; } }
+.reator-mini { width: 22px; height: 22px; }
+.reator-mini .r-raios, .reator-mini .r-seg2 { display: none; }
+.reator-mini .r-seg { stroke-width: 10; }
+
+/* Painel de conversa */
+#jarvis { position: fixed; inset: 0; z-index: 150; display: none; align-items: flex-end; justify-content: center;
+  background: color-mix(in srgb, var(--bg) 70%, transparent); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+#jarvis.aberto { display: flex; animation: aparecer .18s ease-out; }
+.jv-caixa { width: min(560px, 100%); max-height: 100%; display: flex; flex-direction: column; align-items: stretch; gap: 10px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 24px 24px 0 0; padding: 16px 18px max(18px, env(safe-area-inset-bottom));
+  box-shadow: var(--sombra-2); }
+@media (min-width: 900px) { #jarvis { align-items: center; } .jv-caixa { border-radius: 24px; max-height: 86vh; } }
+.jv-topo { display: flex; align-items: center; }
+.jv-marca { font-weight: 700; letter-spacing: .28em; font-size: 13px; color: var(--accent-text); }
+.jv-reator { align-self: center; width: 150px; height: 150px; min-height: 0; padding: 0; border: none; background: none; border-radius: 50%; }
+.jv-reator:hover { background: none; }
+.jv-reator .reator { width: 100%; height: 100%; filter: drop-shadow(0 0 14px color-mix(in srgb, var(--accent) 55%, transparent)); transition: filter .2s; }
+#jarvis[data-estado="ouvindo"] .r-gira { animation-duration: 3s; }
+#jarvis[data-estado="ouvindo"] .r-nucleo { animation: pulsar-nucleo .7s ease-in-out infinite; }
+#jarvis[data-estado="ouvindo"] .jv-reator .reator { filter: drop-shadow(0 0 26px var(--accent)); }
+#jarvis[data-estado="pensando"] .r-gira { animation-duration: 1.2s; }
+#jarvis[data-estado="pensando"] .r-gira-inv { animation-duration: 1.8s; }
+#jarvis[data-estado="falando"] .r-nucleo { animation: pulsar-nucleo .35s ease-in-out infinite; }
+.jv-estado { text-align: center; color: var(--muted); font-size: 14px; min-height: 21px; }
+.jv-conversa { flex: 1; min-height: 60px; max-height: 38vh; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 4px 2px; }
+.jv-msg { max-width: 88%; padding: 9px 13px; border-radius: 16px; font-size: 14.5px; line-height: 1.45; overflow-wrap: anywhere; }
+.jv-msg.eu { align-self: flex-end; background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
+.jv-msg.jv { align-self: flex-start; background: var(--card-2); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+.jv-msg .mini { margin-top: 6px; display: inline-flex; }
+.jv-sugestoes { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.jv-sugestoes::-webkit-scrollbar { display: none; }
+.jv-sugestoes button { flex: none; }
+.jv-entrada { display: flex; gap: 8px; }
+.jv-entrada input { flex: 1; border-radius: 99px; padding-left: 16px; }
+.jv-entrada button { background: var(--accent); color: #fff; min-width: 44px; min-height: 44px; }
+.jv-entrada button:hover { background: var(--accent-hover); color: #fff; }
+body.jv-aberto { overflow: hidden; }
+
+/* Botão do Jarvis no menu lateral e na barra do celular */
+#lateral .bt-jarvis { margin: -6px 4px 12px; justify-content: flex-start; gap: 10px; }
+#lateral .bt-jarvis kbd { margin-left: auto; font-size: 11px; color: var(--muted); font-family: inherit; border: 1px solid var(--line-2); border-radius: 5px; padding: 0 5px; }
+#barra .bt-jarvis { border: none; background: none; padding: 0; min-width: 40px; min-height: 40px; }
+#barra .bt-jarvis .reator { width: 28px; height: 28px; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 60%, transparent)); }
+
+/* Destaque no Início (só no tema Jarvis) */
+.jv-hero { display: none; }
+
+/* ---------- Tema Jarvis (HUD) ---------- */
+:root[data-theme="jarvis"] {
+  --bg: #02070d; --card: rgba(6, 22, 36, .78); --card-2: rgba(10, 34, 52, .7); --text: #d8f6ff; --muted: #6f9fb4;
+  --line: rgba(0, 212, 255, .16); --line-2: rgba(0, 212, 255, .34);
+  --accent: #00d4ff; --accent-hover: #4fe2ff; --accent-soft: rgba(0, 212, 255, .12); --accent-text: #5fe6ff; --reator-claro: #b8f4ff;
+  --ok: #2bf5a0; --ok-soft: rgba(43, 245, 160, .12); --bad: #ff4d6d; --bad-soft: rgba(255, 77, 109, .13); --warn: #ffb547; --warn-soft: rgba(255, 181, 71, .12); --roxo: #b38cff;
+  --sombra-1: 0 0 0 1px rgba(0, 212, 255, .04), 0 0 18px rgba(0, 212, 255, .05); --sombra-2: 0 0 40px rgba(0, 212, 255, .18);
+  --r-lg: 6px; --r: 5px; --r-sm: 4px;
+  color-scheme: dark;
+}
+[data-theme="jarvis"] body {
+  font-family: "Rajdhani", system-ui, sans-serif; font-size: 16px; letter-spacing: .01em;
+  background:
+    radial-gradient(1200px 700px at 70% -10%, rgba(0, 150, 220, .16), transparent 60%),
+    radial-gradient(900px 600px at -10% 110%, rgba(0, 120, 200, .12), transparent 60%),
+    linear-gradient(rgba(0, 212, 255, .035) 1px, transparent 1px) 0 0 / 100% 32px,
+    linear-gradient(90deg, rgba(0, 212, 255, .035) 1px, transparent 1px) 0 0 / 32px 100%,
+    #02070d;
+  background-attachment: fixed;
+}
+[data-theme="jarvis"] h1, [data-theme="jarvis"] .jv-marca, [data-theme="jarvis"] .grande, [data-theme="jarvis"] .tile .val,
+[data-theme="jarvis"] .resumo b, [data-theme="jarvis"] .al .h, [data-theme="jarvis"] .stats b {
+  font-family: "Orbitron", "Rajdhani", system-ui, sans-serif; letter-spacing: .04em; text-shadow: 0 0 14px rgba(0, 212, 255, .45);
+}
+[data-theme="jarvis"] h1 { text-transform: uppercase; font-size: 22px; font-weight: 600; color: var(--accent-text); }
+[data-theme="jarvis"] .ola h1 { font-size: 24px; }
+[data-theme="jarvis"] h2 { text-transform: uppercase; letter-spacing: .12em; font-size: 13.5px; font-weight: 700; color: var(--accent-text); }
+[data-theme="jarvis"] .tile .val, [data-theme="jarvis"] .grande { font-weight: 600; }
+[data-theme="jarvis"] .grande { font-size: 26px; }
+/* Cartões com cantos de "mira" */
+[data-theme="jarvis"] .card, [data-theme="jarvis"] .resumo a, [data-theme="jarvis"] .col {
+  background:
+    linear-gradient(var(--accent), var(--accent)) left top / 14px 2px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) left top / 2px 14px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) right bottom / 14px 2px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) right bottom / 2px 14px no-repeat,
+    var(--card);
+  border-color: var(--line); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+[data-theme="jarvis"] .tile.destaque {
+  background: linear-gradient(135deg, rgba(0, 212, 255, .22), rgba(0, 90, 160, .25)); border: 1px solid var(--line-2); color: var(--text);
+  box-shadow: inset 0 0 30px rgba(0, 212, 255, .12), 0 0 24px rgba(0, 212, 255, .12);
+}
+[data-theme="jarvis"] .tile.destaque .lbl, [data-theme="jarvis"] .tile.destaque small { color: var(--accent-text); }
+[data-theme="jarvis"] .tile.destaque .bar > div { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+[data-theme="jarvis"] .bar > div { box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 70%, transparent); }
+/* Botões */
+[data-theme="jarvis"] button, [data-theme="jarvis"] .btn { background: rgba(0, 212, 255, .04); border-color: var(--line-2); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; font-size: 13.5px; }
+[data-theme="jarvis"] button:hover, [data-theme="jarvis"] .btn:hover { background: rgba(0, 212, 255, .12); box-shadow: 0 0 14px rgba(0, 212, 255, .25); }
+[data-theme="jarvis"] button.primary, [data-theme="jarvis"] .btn.primary { background: rgba(0, 212, 255, .16); color: var(--accent-text); border-color: var(--accent); box-shadow: 0 0 12px rgba(0, 212, 255, .25), inset 0 0 12px rgba(0, 212, 255, .15); }
+[data-theme="jarvis"] button.primary:hover { background: rgba(0, 212, 255, .28); }
+[data-theme="jarvis"] button.icon, [data-theme="jarvis"] button.fantasma { background: transparent; box-shadow: none; text-transform: none; }
+[data-theme="jarvis"] .switch { background: var(--line-2); box-shadow: none; }
+[data-theme="jarvis"] .switch.on { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+[data-theme="jarvis"] .chip { text-transform: uppercase; letter-spacing: .05em; font-size: 11px; }
+[data-theme="jarvis"] input, [data-theme="jarvis"] select, [data-theme="jarvis"] textarea { background: rgba(0, 20, 34, .7); }
+[data-theme="jarvis"] input[type=checkbox] { border-color: var(--accent); background: transparent; }
+[data-theme="jarvis"] input[type=checkbox]:checked { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+[data-theme="jarvis"] input[type=checkbox]::after { border-color: #00141f; }
+/* Navegação */
+[data-theme="jarvis"] #lateral, [data-theme="jarvis"] #abas { background: rgba(2, 12, 22, .88); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-color: var(--line); }
+[data-theme="jarvis"] #lateral a.item { text-transform: uppercase; letter-spacing: .08em; font-size: 13.5px; }
+[data-theme="jarvis"] #lateral a.item.ativo, [data-theme="jarvis"] #abas a.ativo { text-shadow: 0 0 10px var(--accent); }
+[data-theme="jarvis"] #lateral a.item.ativo { box-shadow: inset 2px 0 0 var(--accent); }
+[data-theme="jarvis"] #fab { background: rgba(0, 212, 255, .2); border: 1px solid var(--accent); color: var(--accent-text); box-shadow: 0 0 22px rgba(0, 212, 255, .45); border-radius: 50%; }
+[data-theme="jarvis"] dialog, [data-theme="jarvis"] .jv-caixa, [data-theme="jarvis"] .alarme-box { background: rgba(4, 18, 30, .96); border: 1px solid var(--line-2); }
+[data-theme="jarvis"] .toast { background: rgba(4, 18, 30, .96); color: var(--text); border: 1px solid var(--accent); box-shadow: 0 0 20px rgba(0, 212, 255, .3); }
+[data-theme="jarvis"] .jv-msg.eu { background: rgba(0, 212, 255, .18); color: var(--text); border: 1px solid var(--line-2); }
+[data-theme="jarvis"] .jv-reator, [data-theme="jarvis"] #barra .bt-jarvis { background: none; box-shadow: none; }
+[data-theme="jarvis"] .tabela tr:hover td, [data-theme="jarvis"] .cal .dia:hover { background: rgba(0, 212, 255, .06); }
+[data-theme="jarvis"] .cal .dia { background: transparent; text-transform: none; }
+[data-theme="jarvis"] .cal .dia.hoje .n { box-shadow: 0 0 10px var(--accent); color: #00141f; }
+[data-theme="jarvis"] .g-linha { filter: drop-shadow(0 0 4px var(--accent)); }
+/* Entrada das telas com leve "varredura" */
+[data-theme="jarvis"] main.entrando > * { animation: hud-entrada .35s ease-out both; }
+[data-theme="jarvis"] main.entrando > *:nth-child(2) { animation-delay: .04s; }
+[data-theme="jarvis"] main.entrando > *:nth-child(3) { animation-delay: .08s; }
+@keyframes hud-entrada { from { opacity: 0; transform: translateY(6px); clip-path: inset(0 0 100% 0); } to { opacity: 1; transform: none; clip-path: inset(0 0 0 0); } }
+/* Início: reator em destaque */
+[data-theme="jarvis"] .jv-hero { display: flex; align-items: center; gap: 22px; margin-bottom: 18px; }
+[data-theme="jarvis"] .jv-hero > button { width: 128px; height: 128px; min-height: 0; padding: 0; border: none; background: none; box-shadow: none; border-radius: 50%; flex: none; }
+[data-theme="jarvis"] .jv-hero .reator { width: 100%; height: 100%; filter: drop-shadow(0 0 18px rgba(0, 212, 255, .55)); }
+[data-theme="jarvis"] .jv-hero .ola { margin: 0; }
+[data-theme="jarvis"] .jv-hero .ola p { color: var(--accent-text); letter-spacing: .08em; }
+[data-theme="jarvis"] .jv-hero .online { font-size: 12px; letter-spacing: .3em; color: var(--ok); text-shadow: 0 0 8px var(--ok); margin-top: 6px; }
+[data-theme="jarvis"] .so-fora-jarvis { display: none; }
+@media (max-width: 899px) { [data-theme="jarvis"] .jv-hero > button { width: 92px; height: 92px; } [data-theme="jarvis"] .jv-hero { gap: 14px; } }
+
+/* Resumo do Início nunca passa da largura da tela (a fonte do tema Jarvis é mais larga) */
+.resumo a { min-width: 0; }
+.resumo b { overflow-wrap: anywhere; }
+@media (max-width: 899px) { [data-theme="jarvis"] .resumo b { font-size: 13.5px; letter-spacing: .01em; } [data-theme="jarvis"] .resumo span { font-size: 12px; } }
