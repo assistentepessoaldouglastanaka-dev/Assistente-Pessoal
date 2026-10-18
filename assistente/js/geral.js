@@ -54,6 +54,18 @@ registrar({
         <select data-muda="jarvisTratamento" aria-label="Como o Jarvis te chama">
           <option value="senhor"${J.tratamento !== 'nome' ? ' selected' : ''}>Senhor</option>
           <option value="nome"${J.tratamento === 'nome' ? ' selected' : ''}>Pelo nome${db.config.nome ? ' (' + esc(db.config.nome) + ')' : ''}</option></select></div>
+      ${Voz.podeFalar() ? `<div class="campos mt">
+        <label class="campo largo"><span class="rot">Voz deste aparelho</span>
+          <select data-muda="jarvisVoz" aria-label="Voz do Jarvis">${Voz.lista.length ? Voz.lista.map((v, i) =>
+            `<option value="${esc(v.id)}"${Voz.escolhida()?.id === v.id ? ' selected' : ''}>${esc(v.rotulo)}${i === 0 ? ' ★ recomendada' : ''}</option>`).join('')
+            : '<option>Carregando vozes...</option>'}</select>
+          <small>A ★ é a voz masculina mais natural encontrada. Teste as outras e fique com a que soar melhor.</small></label>
+        <label class="campo"><span class="rot">Velocidade</span><select data-muda="jarvisAjuste" data-k="velocidade">
+          ${[['devagar', 'Mais devagar'], ['normal', 'Normal'], ['rapido', 'Mais rápida']].map(([v, l]) => `<option value="${v}"${(J.velocidade || 'normal') === v ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
+        <label class="campo"><span class="rot">Tom</span><select data-muda="jarvisAjuste" data-k="tom">
+          ${[['normal', 'Natural'], ['grave', 'Mais grave']].map(([v, l]) => `<option value="${v}"${(J.tom || 'normal') === v ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
+      </div>
+      <button class="mini mt" data-acao="jarvisTestar">${ic('play', 'ic-sm')} Testar voz</button>` : ''}
       <p class="muted" style="font-size:12.5px;margin:10px 0 0">Comandos comuns funcionam sem internet. Perguntas livres usam a IA gratuita da Cloudflare. Atalho no computador: Alt+J.</p>`;
   },
   cardSync() {
@@ -89,6 +101,9 @@ registrar({
       if (d.k === 'palavra') db.config.jarvis.palavra ? (Escuta.ligar(), aviso('Diga "Jarvis" e o comando')) : Escuta.desligar();
       if (d.k === 'voz' && db.config.jarvis.voz) Voz.falar(`Voz ativada, ${Jarvis.tratamento()}.`);
     },
+    jarvisVoz(d, el) { Voz.escolher(el.value); Voz.falar(`Voz selecionada. Às suas ordens, ${Jarvis.tratamento()}.`, true); },
+    jarvisAjuste(d, el) { db.config.jarvis[d.k] = el.value; ok(); Voz.falar('Assim está melhor?', true); },
+    jarvisTestar() { Voz.falar(`Às suas ordens, ${Jarvis.tratamento()}. Todos os sistemas estão operacionais. Sua agenda de hoje tem três compromissos e o saldo do mês está positivo.`, true); },
     jarvisTratamento(d, el) { db.config.jarvis.tratamento = el.value; ok(); Voz.falar(`Certo, ${Jarvis.tratamento()}.`); },
     async googleAgora() { aviso('Atualizando com o Google...'); await Google.atualizar(); render(); aviso(Google.erro || 'Google atualizado'); },
     googleLiga(d) { db.google[d.k] = !db.google[d.k]; ok(); if (db.google[d.k]) Google.atualizar(); },

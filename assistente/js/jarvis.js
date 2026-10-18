@@ -200,20 +200,55 @@ const Voz = {
     if (Nativo.ativo) Nativo.P.SpeechRecognition?.stop().catch(() => {});
     else this.rec?.abort();
   },
-  vozBR() {
-    const vs = speechSynthesis.getVoices().filter(v => /pt[-_]BR/i.test(v.lang));
-    return vs.find(v => /google/i.test(v.name)) || vs.find(v => /daniel|antonio|male|masculin/i.test(v.name)) || vs[0];
+  // ----- Escolha da voz (cada aparelho tem as suas; a escolha fica salva só neste aparelho) -----
+  lista: [],
+  async carregarVozes() {
+    try {
+      const brutas = Nativo.ativo ? (await Nativo.P.TextToSpeech.getSupportedVoices()).voices : speechSynthesis.getVoices();
+      this.lista = brutas.map((v, idx) => ({ id: v.voiceURI || v.name, nome: v.name, lang: v.lang || '', idx }))
+        .filter(v => /^pt/i.test(v.lang.replace('_', '-')))
+        .map(v => ({ ...v, rotulo: this.rotulo(v), nota: this.pontuar(v) }))
+        .sort((a, b) => b.nota - a.nota);
+    } catch (e) { this.lista = []; }
+    return this.lista;
   },
-  async falar(texto) {
-    if (!db.config.jarvis.voz || !texto || !this.podeFalar()) return;
+  // Vozes masculinas e "naturais/neurais" (as mais humanas) primeiro
+  pontuar(v) {
+    const n = (v.nome + ' ' + v.id).toLowerCase();
+    let p = /pt[-_]br/i.test(v.lang) ? 50 : 0;
+    if (/antonio|daniel|thiago|f[aá]bio|donato|humberto|julio|nicolau|valerio|ricardo|male\b|masculin|homem|-x-pte/.test(n)) p += 40;
+    if (/francisca|maria|luciana|vit[oó]ria|thalita|leila|brenda|elza|yara|female|feminin|mulher|-x-afs|google portugu/.test(n)) p -= 40;
+    if (/natural|neural|online|enhanced|premium|network/.test(n)) p += 15;
+    return p;
+  },
+  rotulo(v) {
+    const g = v.nome.match(/^pt-br-x-(\w+)-(local|network)/i);
+    if (g) return `Google ${g[1].toUpperCase()} · ${g[2] === 'network' ? 'online, mais natural' : 'offline'}`;
+    return v.nome.replace(/Microsoft |Google /, m => m).replace(/ - Portuguese \(Brazil\)| \(Brazil\)/i, '');
+  },
+  escolhida() {
+    let salvo = null;
+    try { salvo = localStorage.getItem('assistente.voz'); } catch (e) {}
+    return this.lista.find(v => v.id === salvo) || this.lista[0] || null;
+  },
+  escolher(id) { try { localStorage.setItem('assistente.voz', id); } catch (e) {} },
+  ajustes() {
+    const J = db.config.jarvis;
+    return { rate: { devagar: 0.88, normal: 1.0, rapido: 1.15 }[J.velocidade || 'normal'], pitch: { grave: 0.85, normal: 1.0 }[J.tom || 'normal'] };
+  },
+  async falar(texto, forcar = false) {
+    if ((!db.config.jarvis.voz && !forcar) || !texto || !this.podeFalar()) return;
+    if (!this.lista.length) await this.carregarVozes();
+    const v = this.escolhida(), { rate, pitch } = this.ajustes();
     this.falando = true;
     try {
-      if (Nativo.ativo) await Nativo.P.TextToSpeech.speak({ text: texto, lang: 'pt-BR', rate: 1.0, pitch: 0.95, volume: 1 });
+      if (Nativo.ativo) await Nativo.P.TextToSpeech.speak({ text: texto, lang: v?.lang || 'pt-BR', rate, pitch, volume: 1, ...(v ? { voice: v.idx } : {}) });
       else await new Promise(res => {
         speechSynthesis.cancel();
         const u = new SpeechSynthesisUtterance(texto);
-        u.lang = 'pt-BR'; u.rate = 1.05; u.pitch = 0.95;
-        const v = this.vozBR(); if (v) u.voice = v;
+        u.lang = v?.lang || 'pt-BR'; u.rate = rate; u.pitch = pitch;
+        const obj = v && speechSynthesis.getVoices().find(x => (x.voiceURI || x.name) === v.id);
+        if (obj) u.voice = obj;
         u.onend = u.onerror = res;
         speechSynthesis.speak(u);
       });
@@ -226,7 +261,9 @@ const Voz = {
     this.falando = false;
   },
 };
-if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = () => {};
+// As vozes do navegador chegam depois de carregar a página
+if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = () => Voz.carregarVozes().then(() => { if (atual === 'geral' && !document.querySelector('dialog[open]')) render(); });
+setTimeout(() => Voz.carregarVozes(), 800);
 
 // ---------- Palavra de ativação "Jarvis" ----------
 const PALAVRA_RE = /\b(jarvis|jarv[ie]s|djarvis|j[áa]rvis|jarbas|jarvas)\b[\s,.:!]*/i;

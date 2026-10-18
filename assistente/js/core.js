@@ -98,7 +98,7 @@ function folha(titulo, itens) {
 function padrao() {
   return {
     versao: 1,
-    config: { nome: '', folga: 10, tema: 'auto', ultimoBackup: null, jarvis: { voz: true, palavra: false, tratamento: 'senhor' } },
+    config: { nome: '', folga: 10, tema: 'auto', ultimoBackup: null, jarvis: { voz: true, palavra: false, tratamento: 'senhor', velocidade: 'normal', tom: 'normal' } },
     // { id, area: 'trabalho'|'pessoal', titulo, status: 'afazer'|'fazendo'|'feito', prioridade, prazo, projeto, notas, concluida }
     tarefas: [],
     // { id, nome, preco, link, prioridade, comprado, notas }
