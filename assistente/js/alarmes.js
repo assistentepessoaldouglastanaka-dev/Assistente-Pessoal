@@ -133,9 +133,14 @@ const Alarmes = {
       ],
       preparar: v => {
         v.ativo = true;
+        // mudou hora ou dias: vai de novo para o Relógio (o antigo precisa ser apagado lá)
+        if (a?.noRelogio && (v.hora !== a.hora || String(v.dias) !== String(a.dias || []))) { v.noRelogio = false; Alarmes.avisarRelogio = true; }
         v.data = v.dias.length ? null : (minutos(v.hora) > agoraMin() ? hoje() : somaDias(hoje(), 1));
       },
-      depois: x => setTimeout(() => aviso(Alarmes.emQuanto(x)), 50),
+      depois: x => setTimeout(() => {
+        aviso(Alarmes.avisarRelogio ? 'Alarme alterado: apague o antigo no Relógio do celular' : Alarmes.emQuanto(x));
+        Alarmes.avisarRelogio = false;
+      }, 50),
     });
   },
   // "Toca em 7 h 30 min", como no relógio do celular
@@ -174,11 +179,20 @@ registrar({
         : `<div class="aviso">${ic('info')}<span>Neste navegador os alarmes tocam com o app aberto em alguma aba (pode ficar minimizada). No celular, use o app Android.</span>
           ${perm === 'default' ? '<button class="mini primary" data-acao="permitir">Ativar notificações</button>' : ''}
           ${perm === 'denied' ? '<b>Notificações bloqueadas no navegador: o alarme toca só dentro do app.</b>' : ''}</div>`)
+      + (Nativo.ativo ? `<section class="card"><h2>${ic('smartphone')} Relógio do celular</h2>
+          <div class="al"><div class="h">${Nativo.relogio ? esc(Nativo.relogioTexto().split(' às ')[1]) : '--:--'}</div>
+            <div class="info"><div style="font-weight:600">${Nativo.relogio ? 'Próximo alarme do Relógio' : 'Nenhum alarme ligado no Relógio'}</div>
+            <div class="muted" style="font-size:13px">${Nativo.relogio ? esc(Nativo.relogioTexto()) : 'Ou o app ainda não foi atualizado'}</div></div>
+            <button class="mini" data-acao="abrirRelogio">${ic('alarm-clock', 'ic-sm')} Abrir Relógio</button></div>
+          <label class="check mt"><input type="checkbox" data-muda="copiarRelogio"${db.config.relogio ? ' checked' : ''}>
+            <span>Criar meus alarmes também no Relógio da Samsung</span></label>
+          <p class="muted" style="font-size:12.5px;margin:6px 0 0">O Android só deixa outros apps verem o <b>próximo</b> alarme do Relógio, não a lista toda. Com a opção ligada, cada alarme criado aqui, no PC ou pelo Jarvis vai para o Relógio e toca por lá (sem tocar em dobro). Para desligar ou apagar, use o Relógio.</p>
+        </section>` : '')
       + `<div class="grid2">
         <section class="card"><h2>${ic('alarm-clock')} Meus alarmes</h2>
           ${lista.length ? lista.map(a => `<div class="al ${a.ativo ? '' : 'off'}">
             <div class="h" data-acao="editar" data-id="${a.id}" style="cursor:pointer">${a.hora}</div>
-            <div class="info" data-acao="editar" data-id="${a.id}" style="cursor:pointer"><div style="font-weight:600">${esc(a.rotulo || 'Alarme')}</div><div class="muted" style="font-size:13px">${A.descricaoDias(a)}</div></div>
+            <div class="info" data-acao="editar" data-id="${a.id}" style="cursor:pointer"><div style="font-weight:600">${esc(a.rotulo || 'Alarme')}</div><div class="muted" style="font-size:13px">${A.descricaoDias(a)}${a.noRelogio ? ' · no Relógio' : ''}</div></div>
             <button class="switch ${a.ativo ? 'on' : ''}" data-acao="alternar" data-id="${a.id}" role="switch" aria-checked="${a.ativo}" aria-label="${a.ativo ? 'Desligar' : 'Ligar'} ${esc(a.rotulo || 'alarme')}"></button></div>`).join('')
             : vazio('alarm-clock', 'Nenhum alarme ainda.', `<button class="mini" data-acao="novo">${ic('plus', 'ic-sm')} Novo alarme</button>`)}
         </section>
@@ -201,6 +215,13 @@ registrar({
       ok(a.ativo ? Alarmes.emQuanto(a) : 'Alarme desligado');
     },
     testar() { Alarmes.bip(); },
+    copiarRelogio(d, el) {
+      db.config.relogio = el.checked;
+      ok(el.checked ? 'Seus alarmes vão para o Relógio do celular' : 'Novos alarmes ficam só no app');
+    },
+    async abrirRelogio() {
+      try { await Nativo.P.Sistema.abrirAlarmesRelogio(); } catch { aviso('Atualize o app (APK novo) para usar este atalho'); }
+    },
     permitirNativo() { Nativo.pedirPermissoes(); },
     async permitir() { await Notification.requestPermission(); render(); },
   },

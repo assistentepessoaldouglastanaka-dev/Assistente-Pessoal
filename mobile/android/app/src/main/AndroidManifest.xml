@@ -71,8 +71,10 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- Jarvis: ouvir comandos de voz e responder falando -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
     <queries>
         <intent><action android:name="android.speech.RecognitionService" /></intent>
         <intent><action android:name="android.intent.action.TTS_SERVICE" /></intent>
+        <intent><action android:name="android.intent.action.SET_ALARM" /></intent>
     </queries>
 </manifest>

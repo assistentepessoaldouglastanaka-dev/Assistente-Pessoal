@@ -8,6 +8,7 @@ const Nativo = {
   ESQUEMA: 'br.com.assistentepessoal',
   CANAL: 'alarmes',
   timer: null, assinatura: '', agendados: 0, permissao: null, exato: null,
+  relogio: null, // próximo alarme do app Relógio do celular: { quando: ms, pacote }
   // O app Android abre o site da Vercel: os plugins nativos precisam ser registrados pelo nome
   // (a biblioteca @capacitor/core, em js/vendor, cria a ponte para o código nativo de cada um)
   PLUGINS: ['App', 'LocalNotifications', 'Browser', 'StatusBar', 'SpeechRecognition', 'TextToSpeech', 'Preferences', 'Sistema'],
@@ -33,7 +34,7 @@ const Nativo = {
       else if (atual !== 'inicio') history.back();
       else A.minimizeApp();
     });
-    A.addListener('resume', () => { Sync.sincronizar(); this.agendarDepois(500); });
+    A.addListener('resume', () => { Sync.sincronizar(); this.agendarDepois(500); this.lerRelogio(); });
     try {
       await LN.createChannel({
         id: this.CANAL, name: 'Alarmes e lembretes', description: 'Alarmes, eventos, hora de sair e contas a pagar',
@@ -48,6 +49,7 @@ const Nativo = {
     });
     await this.verPermissoes();
     this.agendarDepois(500);
+    this.lerRelogio();
     // aberto pelo widget com o app fechado
     try { const { url } = await A.getLaunchUrl() || {}; if (url) setTimeout(() => this.abrirLink(url), 800); } catch (e) {}
   },
@@ -85,6 +87,42 @@ const Nativo = {
     }, 2000);
   },
 
+  // ---------- App Relógio (Samsung) ----------
+  // O Android só deixa ler o PRÓXIMO alarme do Relógio; criar alarmes nele é permitido.
+  RELOGIO_PROPRIO: 'br.com.assistentepessoal',
+  async lerRelogio() {
+    if (!this.ativo) return;
+    try {
+      const r = await this.P.Sistema.proximoAlarme();
+      const novo = r?.quando && r.pacote !== this.RELOGIO_PROPRIO ? { quando: r.quando, pacote: r.pacote } : null;
+      if (JSON.stringify(novo) !== JSON.stringify(this.relogio)) { this.relogio = novo; if (['alarmes', 'inicio'].includes(atual)) render(); }
+    } catch (e) { this.relogio = null; } // APK antigo, sem o plugin
+  },
+  relogioTexto() {
+    if (!this.relogio) return '';
+    const d = new Date(this.relogio.quando), iso = isoData(d);
+    return `${rotuloDia(iso)} às ${hhmm(d.getHours() * 60 + d.getMinutes())}`;
+  },
+  // Com "copiar para o Relógio" ligado, cada alarme do app (criado aqui, no PC ou pelo Jarvis) vai uma vez para o Relógio
+  enviandoRelogio: false,
+  async enviarParaRelogio() {
+    if (!this.ativo || !db.config.relogio || this.enviandoRelogio) return;
+    const pend = db.alarmes.filter(a => a.ativo && !a.noRelogio && (a.dias?.length || a.data >= hoje()));
+    if (!pend.length) return;
+    this.enviandoRelogio = true;
+    let n = 0;
+    for (const a of pend) {
+      const [h, m] = a.hora.split(':').map(Number);
+      try {
+        await this.P.Sistema.criarAlarmeRelogio({ hora: h, minuto: m, rotulo: a.rotulo || 'Alarme', dias: a.dias || [] });
+        a.noRelogio = true; n++;
+        await new Promise(r => setTimeout(r, 700)); // o Relógio processa um pedido por vez
+      } catch (e) { console.warn('Relógio:', e); break; }
+    }
+    this.enviandoRelogio = false;
+    if (n) { salvar(); aviso(`${n} alarme${n > 1 ? 's' : ''} criado${n > 1 ? 's' : ''} no Relógio do celular`); setTimeout(() => this.lerRelogio(), 5000); }
+  },
+
   // ---------- Permissões ----------
   async verPermissoes() {
     const LN = this.P.LocalNotifications;
@@ -113,6 +151,7 @@ const Nativo = {
       const iso = somaDias(h, i), dow = deISO(iso).getDay();
       for (const a of db.alarmes) {
         if (!a.ativo || (a.dias?.length ? !a.dias.includes(dow) : a.data !== iso)) continue;
+        if (a.noRelogio) continue; // já toca pelo Relógio do celular
         out.push({ chave: `al:${a.id}:${iso}`, quando: em(iso, a.hora), titulo: '⏰ ' + (a.rotulo || 'Alarme'), texto: `Alarme das ${a.hora}`, pagina: 'alarmes' });
       }
       for (const l of Alarmes.lembretesDoDia(iso)) {
@@ -129,7 +168,7 @@ const Nativo = {
   agendarDepois(ms = 2000) {
     if (!this.ativo) return;
     clearTimeout(this.timer);
-    this.timer = setTimeout(() => this.agendar(), ms);
+    this.timer = setTimeout(() => { this.agendar(); this.enviarParaRelogio(); }, ms);
   },
   notificacao(x) {
     return {
