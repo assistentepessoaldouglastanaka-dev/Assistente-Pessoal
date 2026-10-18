@@ -23,12 +23,14 @@ registrar({
           <div class="campos">
             <label class="campo"><span class="rot">Como quer ser chamado</span><input value="${esc(c.nome)}" data-muda="config" data-k="nome" placeholder="Seu nome"></label>
             <label class="campo"><span class="rot">Tema</span><select data-muda="config" data-k="tema">
-              ${[['auto', 'Automático'], ['light', 'Claro'], ['dark', 'Escuro']].map(([v, l]) => `<option value="${v}"${c.tema === v ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
+              ${[['auto', 'Automático'], ['light', 'Claro'], ['dark', 'Escuro'], ['jarvis', 'Jarvis (HUD)']].map(([v, l]) => `<option value="${v}"${c.tema === v ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
             <label class="campo largo"><span class="rot">Folga nos deslocamentos (minutos)</span>
               <input type="number" min="0" inputmode="numeric" value="${c.folga}" data-muda="config" data-k="folga">
               <small>Somada ao tempo de cada trajeto no aviso de "hora de sair".</small></label>
           </div>
         </section>
+        <section class="card"><h2>${reator('reator-mini')} Jarvis<span class="sp"></span>
+            <button class="mini" data-acao="jarvis:abrir">Falar agora</button></h2>${this.cardJarvis()}</section>
         <section class="card"><h2>${ic('hard-drive-download')} Backup</h2>
           <p class="muted" style="margin-top:0;font-size:14px">${Sync.usuario ? 'Seus dados já ficam salvos na nuvem.' : 'Seus dados ficam só neste aparelho.'}
             Um backup em arquivo é uma garantia extra. Último: <b>${c.ultimoBackup ? fmtData(c.ultimoBackup) : 'nunca'}</b></p>
@@ -40,6 +42,19 @@ registrar({
           <p class="muted" style="font-size:12.5px;margin-bottom:0">Aceita também os backups do antigo controle de gastos (substitui só Finanças).</p>
         </section>
       </div>`;
+  },
+  cardJarvis() {
+    const J = db.config.jarvis;
+    const linha = (k, nome, sub) => `<div class="linha"><span><b style="font-weight:550">${nome}</b><br><span class="muted" style="font-size:12.5px">${sub}</span></span>
+      <button class="switch ${J[k] ? 'on' : ''}" data-acao="jarvisLiga" data-k="${k}" role="switch" aria-checked="${!!J[k]}" aria-label="${nome}"></button></div>`;
+    return `${linha('voz', 'Responder falando', Voz.podeFalar() ? 'Além de mostrar na tela' : 'Este aparelho não tem voz disponível')}
+      ${Escuta.pode() ? linha('palavra', 'Ativar dizendo "Jarvis"', 'Com o app aberto na tela. Usa o microfone continuamente.')
+        : `<div class="linha"><span><b style="font-weight:550">Ativar dizendo "Jarvis"</b><br><span class="muted" style="font-size:12.5px">${Nativo.ativo ? 'No app Android, toque no reator para falar' : 'Disponível no Chrome'}</span></span></div>`}
+      <div class="linha"><span><b style="font-weight:550">Como ele te chama</b></span>
+        <select data-muda="jarvisTratamento" aria-label="Como o Jarvis te chama">
+          <option value="senhor"${J.tratamento !== 'nome' ? ' selected' : ''}>Senhor</option>
+          <option value="nome"${J.tratamento === 'nome' ? ' selected' : ''}>Pelo nome${db.config.nome ? ' (' + esc(db.config.nome) + ')' : ''}</option></select></div>
+      <p class="muted" style="font-size:12.5px;margin:10px 0 0">Comandos comuns funcionam sem internet. Perguntas livres usam a IA gratuita da Cloudflare. Atalho no computador: Alt+J.</p>`;
   },
   cardSync() {
     const p = t => `<p class="muted" style="margin:0;font-size:14px">${t}</p>`;
@@ -69,6 +84,12 @@ registrar({
   },
   acoes: {
     entrar() { Sync.entrar(); },
+    jarvisLiga(d) {
+      db.config.jarvis[d.k] = !db.config.jarvis[d.k]; ok();
+      if (d.k === 'palavra') db.config.jarvis.palavra ? (Escuta.ligar(), aviso('Diga "Jarvis" e o comando')) : Escuta.desligar();
+      if (d.k === 'voz' && db.config.jarvis.voz) Voz.falar(`Voz ativada, ${Jarvis.tratamento()}.`);
+    },
+    jarvisTratamento(d, el) { db.config.jarvis.tratamento = el.value; ok(); Voz.falar(`Certo, ${Jarvis.tratamento()}.`); },
     async googleAgora() { aviso('Atualizando com o Google...'); await Google.atualizar(); render(); aviso(Google.erro || 'Google atualizado'); },
     googleLiga(d) { db.google[d.k] = !db.google[d.k]; ok(); if (db.google[d.k]) Google.atualizar(); },
     sair() { Sync.sair(); },

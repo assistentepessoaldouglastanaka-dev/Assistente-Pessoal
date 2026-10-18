@@ -5,9 +5,18 @@ aplicarTema();
 atual = Modulos[location.hash.slice(1)] ? location.hash.slice(1) : 'inicio';
 render();
 
+// Animação de entrada só ao trocar de tela (não nas atualizações automáticas)
+function animarEntrada() {
+  const m = $('#conteudo');
+  m.classList.remove('entrando'); void m.offsetWidth; m.classList.add('entrando');
+  clearTimeout(animarEntrada.t); animarEntrada.t = setTimeout(() => m.classList.remove('entrando'), 600);
+}
+animarEntrada();
+
 window.addEventListener('hashchange', () => {
   atual = Modulos[location.hash.slice(1)] ? location.hash.slice(1) : 'inicio';
   render();
+  animarEntrada();
   window.scrollTo(0, 0);
 });
 
@@ -18,6 +27,7 @@ window.addEventListener('appinstalled', () => { App.instalar = null; App.instala
 
 Sync.iniciar();
 Nativo.iniciar();
+setTimeout(() => Escuta.ligar(), 1500);
 Sync.definirEstado(Sync.estado);
 
 // Alarmes: verifica a cada 10 s; o áudio só pode ser liberado após uma interação do usuário
