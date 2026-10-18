@@ -33,6 +33,7 @@ registrar({
         <button data-acao="agenda:novo">📅 + Evento</button>
         <button data-acao="financas:novoVar">💸 + Gasto</button>
         <button data-acao="alarmes:novo">⏰ + Alarme</button>
+        ${App.instalar ? '<button class="primary" data-acao="geral:instalar">📲 Instalar app</button>' : ''}
       </div>
       <div class="painel">
         <section class="card"><h2>📅 Agenda de hoje<span class="sp"></span><a class="ver" href="#agenda">ver agenda →</a></h2>

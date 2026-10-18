@@ -78,6 +78,12 @@ registrar({
     async googleAgora() { aviso('Atualizando com o Google...'); await Google.atualizar(); render(); aviso(Google.erro || 'Google atualizado ✔'); },
     googleLiga(d, el) { db.google[d.k] = el.checked; ok(); if (el.checked) Google.atualizar(); },
     sair() { Sync.sair(); },
+    async instalar() {
+      if (!App.instalar) return;
+      App.instalar.prompt();
+      await App.instalar.userChoice;
+      App.instalar = null; render();
+    },
     async syncAgora() { await Sync.sincronizar(); render(); aviso(Sync.estado === 'ok' ? 'Sincronizado ✔' : Sync.rotulo()[1]); },
     novaNota() { this.formNota(); },
     editarNota(d) { this.formNota(db.notas.find(n => n.id === d.id)); },

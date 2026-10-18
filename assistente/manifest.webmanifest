@@ -1,0 +1,23 @@
+{
+  "name": "Assistente Pessoal",
+  "short_name": "Assistente",
+  "description": "Tarefas, agenda, gastos, trajetos, treinos e alarmes em um só lugar.",
+  "lang": "pt-BR",
+  "start_url": "./#inicio",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#12151b",
+  "theme_color": "#2f6fed",
+  "icons": [
+    { "src": "icons/icone-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icone-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icone-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Novo gasto", "url": "./#financas", "icons": [{ "src": "icons/icone-192.png", "sizes": "192x192" }] },
+    { "name": "Agenda", "url": "./#agenda", "icons": [{ "src": "icons/icone-192.png", "sizes": "192x192" }] },
+    { "name": "Treino de hoje", "url": "./#treinos", "icons": [{ "src": "icons/icone-192.png", "sizes": "192x192" }] }
+  ]
+}
