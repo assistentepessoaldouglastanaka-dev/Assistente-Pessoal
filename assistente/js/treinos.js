@@ -55,25 +55,30 @@ registrar({
     let cardHoje;
     if (T.atual) {
       const m = Treinos.modelo(T.atual.modeloId);
-      const feitos = T.atual.itens.filter(i => i.ok).length;
+      const feitos = T.atual.itens.filter(i => i.ok).length, total = T.atual.itens.length;
       const min = Math.round((Date.now() - T.atual.inicio) / 60000);
-      cardHoje = `<section class="card"><h2>🔥 ${esc(m?.nome || 'Treino')}<span class="sp"></span><span class="chip">${feitos}/${T.atual.itens.length} · ${min} min</span></h2>
+      cardHoje = `<section class="card" style="border-color:var(--accent)"><h2>${ic('flame')} ${esc(m?.nome || 'Treino')}<span class="sp"></span>
+          <span class="chip azul">${ic('timer', 'ic-sm')} ${min} min</span></h2>
+        <div class="bar" style="margin:0 0 6px"><div style="width:${total ? feitos / total * 100 : 0}%;background:var(--ok)"></div></div>
+        <div class="muted" style="font-size:13px;margin-bottom:6px">${feitos} de ${total} exercícios</div>
         <ul class="lista">${T.atual.itens.map((e, i) => `<li class="${e.ok ? 'feito' : ''}">
-          <input type="checkbox" data-acao="marcar" data-i="${i}"${e.ok ? ' checked' : ''}>
+          <input type="checkbox" data-acao="marcar" data-i="${i}"${e.ok ? ' checked' : ''} aria-label="Feito: ${esc(e.nome)}">
           <div class="info"><div class="nome">${esc(e.nome)}</div><div class="sub">${e.series ? `${e.series} × ${esc(e.reps)}` : ''}</div></div>
-          <input class="carga" type="number" step="0.5" min="0" inputmode="decimal" placeholder="kg" value="${e.carga ?? ''}" data-muda="carga" data-i="${i}"> kg
+          <label style="display:flex;align-items:center;gap:6px" class="muted"><input class="carga" type="number" step="0.5" min="0" inputmode="decimal" placeholder="—"
+            value="${e.carga ?? ''}" data-muda="carga" data-i="${i}" aria-label="Carga de ${esc(e.nome)} em kg"> kg</label>
         </li>`).join('')}</ul>
-        <div style="display:flex;gap:8px;margin-top:12px"><button class="primary" data-acao="concluir">✔ Concluir treino</button>
-          <button data-acao="descartar">Descartar</button></div></section>`;
+        <div style="display:flex;gap:8px;margin-top:14px"><button class="primary" data-acao="concluir">${ic('check')} Concluir treino</button>
+          <button class="fantasma" data-acao="descartar">Descartar</button></div></section>`;
     } else {
       const m = hojeT.modelo;
-      cardHoje = `<section class="card"><h2>Hoje · ${DIAS_SEMANA_LONGO[dow]}</h2>
-        ${hojeT.feito ? '<p>✅ Treino de hoje concluído. Bom trabalho!</p>' : ''}
-        ${m ? `<p>Planejado: <b>${esc(m.nome)}</b></p><ol class="exs">${m.exercicios.map(e => `<li>${esc(e.nome)} <span class="muted">${Treinos.resumoEx(e)}</span></li>`).join('')}</ol>
-              <button class="primary mt" data-acao="iniciar" data-id="${m.id}">▶ Iniciar treino</button>`
-          : `<p class="muted">${T.modelos.length ? 'Dia de descanso pelo planejamento.' : 'Cadastre seus treinos para começar.'}</p>`}
-        ${T.modelos.length && !m ? `<div style="display:flex;gap:6px;flex-wrap:wrap">${T.modelos.map(x =>
-          `<button class="mini" data-acao="iniciar" data-id="${x.id}">▶ ${esc(x.nome)}</button>`).join('')}</div>` : ''}
+      cardHoje = `<section class="card"><h2>${ic('calendar')} Hoje · ${DIAS_SEMANA_LONGO[dow]}</h2>
+        ${hojeT.feito ? `<div class="aviso" style="background:var(--ok-soft)">${ic('circle-check')} Treino de hoje concluído. Bom trabalho!</div>` : ''}
+        ${m ? `<p style="margin-top:0">Planejado: <b>${esc(m.nome)}</b></p><ol class="exs">${m.exercicios.map(e => `<li>${esc(e.nome)} <span class="muted">${Treinos.resumoEx(e)}</span></li>`).join('')}</ol>
+              <button class="primary mt" data-acao="iniciar" data-id="${m.id}">${ic('play')} Iniciar treino</button>`
+          : T.modelos.length ? vazio('coffee', 'Dia de descanso pelo seu planejamento. Quer treinar mesmo assim?',
+              `<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">${T.modelos.map(x =>
+                `<button class="mini" data-acao="iniciar" data-id="${x.id}">${ic('play', 'ic-sm')} ${esc(x.nome)}</button>`).join('')}</div>`)
+          : vazio('dumbbell', 'Cadastre seus treinos (A, B, C...) para começar.', `<button class="mini" data-acao="novo">${ic('plus', 'ic-sm')} Novo treino</button>`)}
       </section>`;
     }
 
@@ -82,29 +87,28 @@ registrar({
     const noMes = T.sessoes.filter(s => s.data.startsWith(mesAtual)).length;
     const hist = [...T.sessoes].reverse().slice(0, 12);
 
-    return `<div class="topo"><h1>🏋️ Treinos</h1><button class="primary" data-acao="novo">+ Novo treino</button></div>
-      <div class="grid2">
+    return cabecalho('Treinos', { acoes: `<button class="primary" data-acao="novo">${ic('plus')}<span class="rotulo-opc">Novo treino</span></button>` })
+      + `<div class="grid2">
         <div>${cardHoje}
-          <section class="card mt"><h2>Planejamento semanal</h2>
+          <section class="card mt"><h2>${ic('calendar-days')} Planejamento semanal</h2>
             <div class="semana">${[1, 2, 3, 4, 5, 6, 0].map(i => `<label class="${i === dow ? 'hoje' : ''}"><span>${DIAS_SEMANA_LONGO[i]}</span>
-              <select data-muda="semana" data-dia="${i}"><option value="">😴 Descanso</option>${T.modelos.map(m =>
+              <select data-muda="semana" data-dia="${i}"><option value="">Descanso</option>${T.modelos.map(m =>
                 `<option value="${m.id}"${T.semana[i] === m.id ? ' selected' : ''}>${esc(m.nome)}</option>`).join('')}</select></label>`).join('')}</div>
           </section>
         </div>
         <div>
-          <section class="card"><h2>Meus treinos</h2>
+          <section class="card"><h2>${ic('dumbbell')} Meus treinos</h2>
             ${T.modelos.map(m => `<div class="tcard"><div class="t"><span>${esc(m.nome)}</span><span class="sp"></span>
-                <button class="icon" data-acao="iniciar" data-id="${m.id}" title="Iniciar">▶</button>
-                <button class="icon" data-acao="editar" data-id="${m.id}" title="Editar">✎</button></div>
+                ${bi('iniciar', 'play', 'Iniciar', `data-id="${m.id}"`)}${bi('editar', 'pencil', 'Editar', `data-id="${m.id}"`)}</div>
               <ol class="exs">${m.exercicios.map(e => `<li>${esc(e.nome)} <span>${Treinos.resumoEx(e)}</span></li>`).join('')}</ol></div>`).join('')
-              || '<div class="vazio">Nenhum treino cadastrado. Crie, por exemplo, Treino A, B e C.</div>'}
+              || vazio('dumbbell', 'Nenhum treino cadastrado.')}
           </section>
-          <section class="card mt"><h2>Histórico</h2>
+          <section class="card mt"><h2>${ic('activity')} Histórico</h2>
             <div class="stats"><div><b>${naSemana}</b><span class="muted">nesta semana</span></div><div><b>${noMes}</b><span class="muted">neste mês</span></div><div><b>${T.sessoes.length}</b><span class="muted">no total</span></div></div>
-            <ul class="lista">${hist.map(s => `<li><div class="info"><div class="nome">${esc(s.nome)}</div>
-              <div class="sub">${rotuloDia(s.data)} · ${s.itens.filter(i => i.ok).length}/${s.itens.length} exercícios${s.duracao ? ' · ' + s.duracao + ' min' : ''}</div></div>
-              <button class="icon del" data-acao="apagarSessao" data-id="${s.id}" title="Apagar registro">✕</button></li>`).join('')
-              || '<div class="vazio">Seus treinos concluídos aparecem aqui.</div>'}</ul>
+            ${hist.length ? `<ul class="lista">${hist.map(s => `<li><span class="muted">${ic('circle-check')}</span><div class="info"><div class="nome">${esc(s.nome)}</div>
+              <div class="sub"><span>${rotuloDia(s.data)}</span><span>${s.itens.filter(i => i.ok).length}/${s.itens.length} exercícios</span>${s.duracao ? `<span>${s.duracao} min</span>` : ''}</div></div>
+              <div class="acoes-li">${bi('apagarSessao', 'trash-2', 'Apagar registro', `data-id="${s.id}"`).replace('class="icon"', 'class="icon del"')}</div></li>`).join('')}</ul>`
+              : vazio('activity', 'Seus treinos concluídos aparecem aqui.')}
           </section>
         </div>
       </div>`;
@@ -112,9 +116,9 @@ registrar({
   acoes: {
     novo() { Treinos.formModelo(); },
     editar(d) { Treinos.formModelo(Treinos.modelo(d.id)); },
-    iniciar(d) {
-      if (db.treinos.atual && !confirm('Já existe um treino em andamento. Substituir?')) return;
-      Treinos.iniciar(d.id); ir('treinos'); ok('Bom treino! 💪');
+    async iniciar(d) {
+      if (db.treinos.atual && !await confirmar('Já existe um treino em andamento. Começar outro no lugar dele?', { titulo: 'Treino em andamento', ok: 'Começar novo' })) return;
+      Treinos.iniciar(d.id); ir('treinos'); ok('Bom treino!');
     },
     marcar(d, el) { db.treinos.atual.itens[d.i].ok = el.checked; ok(); },
     carga(d, el) { db.treinos.atual.itens[d.i].carga = el.value === '' ? null : parseFloat(el.value); salvar(); },
@@ -126,12 +130,16 @@ registrar({
       // progressão: o modelo passa a sugerir a última carga usada
       if (m) for (const e of m.exercicios) { const x = a.itens.find(i => i.nome === e.nome); if (x && x.carga != null) e.carga = x.carga; }
       db.treinos.atual = null;
-      ok('Treino registrado ✔');
+      ok('Treino registrado');
     },
-    descartar() { if (confirm('Descartar o treino em andamento?')) { db.treinos.atual = null; ok(); } },
+    async descartar() {
+      if (!await confirmar('O progresso deste treino será perdido.', { titulo: 'Descartar treino', ok: 'Descartar', perigo: true })) return;
+      db.treinos.atual = null; ok();
+    },
     apagarSessao(d) {
-      if (!confirm('Apagar este registro do histórico?')) return;
-      db.treinos.sessoes = db.treinos.sessoes.filter(s => s.id !== d.id); ok();
+      const lista = db.treinos.sessoes, i = lista.findIndex(s => s.id === d.id), sessao = lista[i];
+      lista.splice(i, 1); ok();
+      aviso('Registro apagado', { texto: 'Desfazer', fn: () => { lista.splice(i, 0, sessao); ok(); } });
     },
   },
 });

@@ -1,82 +1,76 @@
 'use strict';
 // ============ Gestão geral: notas, configurações e backup ============
 registrar({
-  id: 'geral', nome: 'Geral', icone: '🗂️',
+  id: 'geral', nome: 'Notas e ajustes', icone: '🗂️',
   render() {
     const notas = [...db.notas].sort((a, b) => (b.fixada - a.fixada) || (b.atualizada || '').localeCompare(a.atualizada || ''));
     const c = db.config;
-    const contagem = [
-      ['Tarefas pendentes', db.tarefas.filter(t => t.status !== 'feito').length],
-      ['Itens na wishlist', db.wishlist.filter(w => !w.comprado).length],
-      ['Eventos', db.eventos.length],
-      ['Trajetos', db.rotas.length],
-      ['Treinos registrados', db.treinos.sessoes.length],
-      ['Alarmes ativos', db.alarmes.filter(a => a.ativo).length],
-    ];
-    return `<div class="topo"><h1>🗂️ Geral</h1><button class="primary" data-acao="novaNota">+ Nota</button></div>
-      <section class="card"><h2>📝 Notas</h2>
-        <div class="notas">${notas.map(n => `<div class="nota ${n.fixada ? 'fixada' : ''}">
-          <div class="t"><span>${esc(n.titulo || 'Sem título')}</span>
-            <button class="icon" data-acao="fixar" data-id="${n.id}" title="${n.fixada ? 'Desafixar' : 'Fixar no início'}">${n.fixada ? '📌' : '📍'}</button>
-            <button class="icon" data-acao="editarNota" data-id="${n.id}" title="Editar">✎</button></div>
-          <div class="tx">${esc(n.texto)}</div></div>`).join('') || '<div class="vazio">Ideias, senhas de wi-fi, listas de mercado... (notas fixadas aparecem no Início).</div>'}</div>
+    return cabecalho('Notas e ajustes', { acoes: `<button class="primary" data-acao="novaNota">${ic('plus')}<span class="rotulo-opc">Nova nota</span></button>` })
+      + `<section class="card"><h2>${ic('sticky-note')} Notas</h2>
+        ${notas.length ? `<div class="notas">${notas.map(n => `<div class="nota ${n.fixada ? 'fixada' : ''}">
+          <div class="t"><span data-acao="editarNota" data-id="${n.id}" style="cursor:pointer">${esc(n.titulo || 'Sem título')}</span>
+            ${bi('fixar', n.fixada ? 'pin-off' : 'pin', n.fixada ? 'Desafixar do Início' : 'Fixar no Início', `data-id="${n.id}"`)}
+            ${bi('editarNota', 'pencil', 'Editar', `data-id="${n.id}"`)}</div>
+          <div class="tx" data-acao="editarNota" data-id="${n.id}" style="cursor:pointer">${esc(n.texto)}</div></div>`).join('')}</div>`
+          : vazio('sticky-note', 'Ideias, senha do wi-fi, lista de mercado... As notas fixadas aparecem no Início.',
+              `<button class="mini" data-acao="novaNota">${ic('plus', 'ic-sm')} Nova nota</button>`)}
       </section>
-      <section class="card mt"><h2>☁️ Conta e sincronização <span class="sp"></span>${Sync.usuario ? Sync.rotulo()[0] : ''}</h2>
-        ${this.cardSync()}
-      </section>
-      ${Sync.usuario ? `<section class="card mt"><h2>🔗 Google Workspace<span class="sp"></span>
-          <button class="mini" data-acao="googleAgora">🔄 Atualizar agora</button></h2>${this.cardGoogle()}</section>` : ''}
       <div class="grid2 mt">
-        <section class="card"><h2>⚙️ Configurações</h2>
+        <section class="card"><h2>${ic('cloud')} Conta e sincronização</h2>${this.cardSync()}</section>
+        ${Sync.usuario ? `<section class="card"><h2>${ic('link')} Google Workspace<span class="sp"></span>
+            ${bi('googleAgora', 'refresh-cw', 'Atualizar agora')}</h2>${this.cardGoogle()}</section>` : ''}
+        <section class="card"><h2>${ic('settings')} Preferências</h2>
           <div class="campos">
-            <label class="campo"><span class="rot">Seu nome</span><input value="${esc(c.nome)}" data-muda="config" data-k="nome"></label>
-            <label class="campo"><span class="rot">Folga nos deslocamentos (min)</span><input type="number" min="0" value="${c.folga}" data-muda="config" data-k="folga"></label>
+            <label class="campo"><span class="rot">Como quer ser chamado</span><input value="${esc(c.nome)}" data-muda="config" data-k="nome" placeholder="Seu nome"></label>
             <label class="campo"><span class="rot">Tema</span><select data-muda="config" data-k="tema">
               ${[['auto', 'Automático'], ['light', 'Claro'], ['dark', 'Escuro']].map(([v, l]) => `<option value="${v}"${c.tema === v ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
+            <label class="campo largo"><span class="rot">Folga nos deslocamentos (minutos)</span>
+              <input type="number" min="0" inputmode="numeric" value="${c.folga}" data-muda="config" data-k="folga">
+              <small>Somada ao tempo de cada trajeto no aviso de "hora de sair".</small></label>
           </div>
         </section>
-        <section class="card"><h2>💾 Backup</h2>
-          <p class="muted" style="margin-top:0;font-size:14px">Os dados ficam salvos neste navegador. Exporte um backup de vez em quando
-            (e antes de limpar o navegador ou trocar de computador).<br>Último backup: <b>${c.ultimoBackup ? fmtData(c.ultimoBackup) : 'nunca'}</b></p>
+        <section class="card"><h2>${ic('hard-drive-download')} Backup</h2>
+          <p class="muted" style="margin-top:0;font-size:14px">${Sync.usuario ? 'Seus dados já ficam salvos na nuvem.' : 'Seus dados ficam só neste aparelho.'}
+            Um backup em arquivo é uma garantia extra. Último: <b>${c.ultimoBackup ? fmtData(c.ultimoBackup) : 'nunca'}</b></p>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button data-acao="exportar">⬇ Exportar tudo</button>
-            <button data-acao="abrirImport">⬆ Importar backup</button>
+            <button data-acao="exportar">${ic('download')} Exportar tudo</button>
+            <button data-acao="abrirImport">${ic('upload')} Importar backup</button>
             <input id="arqImport" type="file" accept="application/json,.json" hidden data-muda="importar">
           </div>
-          <p class="muted" style="font-size:13px">Também aceita os backups do antigo <i>controle-de-gastos.html</i> (substitui só a parte de Finanças).</p>
+          <p class="muted" style="font-size:12.5px;margin-bottom:0">Aceita também os backups do antigo controle de gastos (substitui só Finanças).</p>
         </section>
-      </div>
-      <section class="card mt"><h2>📊 Visão geral</h2>
-        ${contagem.map(([l, n]) => `<div class="linha"><span>${l}</span><b>${n}</b></div>`).join('')}
-      </section>`;
+      </div>`;
   },
   cardSync() {
     const p = t => `<p class="muted" style="margin:0;font-size:14px">${t}</p>`;
-    if (!Sync.configurado()) return p('A sincronização entre PC, notebook e celular ainda não foi configurada (falta conectar o Supabase em <code>js/config.js</code>).');
+    if (!Sync.configurado()) return p('A sincronização ainda não foi configurada neste app.');
     if (Sync.estado === 'arquivo') return p('Você abriu o app como arquivo. Para sincronizar, abra pelo endereço web do app.');
-    if (!Sync.usuario) return `${p('Entre com sua conta Google para sincronizar seus dados entre todos os aparelhos e conectar Agenda, Tasks e Gmail.')}
-      <button class="primary mt" data-acao="entrar">Entrar com Google</button>`;
-    return `<div class="linha"><span>Conta</span><b>${esc(Sync.usuario.email)}</b></div>
-      <div class="linha"><span>Situação</span><span>${esc(Sync.rotulo()[1])}</span></div>
-      <div class="linha"><span>Último envio</span><span>${Sync.ultimo ? new Date(Sync.ultimo).toLocaleString('pt-BR') : '—'}</span></div>
-      <div style="display:flex;gap:8px;margin-top:10px"><button data-acao="syncAgora">🔄 Sincronizar agora</button><button data-acao="sair">Sair</button></div>`;
+    if (!Sync.usuario) return `${p('Entre com sua conta Google para ter seus dados no celular, no notebook e no PC, e conectar Agenda, Tasks e Gmail.')}
+      <button class="primary mt" data-acao="entrar">${ic('log-in')} Entrar com Google</button>`;
+    const [cor, texto] = Sync.rotulo();
+    return `<div class="linha"><span>Conta</span><b style="overflow-wrap:anywhere;text-align:right">${esc(Sync.usuario.email)}</b></div>
+      <div class="linha"><span>Situação</span><span class="chip ${cor}">${esc(texto)}</span></div>
+      <div class="linha"><span>Último envio</span><span>${Sync.ultimo ? new Date(Sync.ultimo).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—'}</span></div>
+      <div style="display:flex;gap:8px;margin-top:12px"><button data-acao="syncAgora">${ic('refresh-cw')} Sincronizar agora</button>
+        <button class="fantasma" data-acao="sair">${ic('log-out')} Sair</button></div>`;
   },
   cardGoogle() {
     const hora = iso => iso ? new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '—';
-    const linha = (k, nome, status) => `<div class="linha" style="align-items:center">
-      <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" data-muda="googleLiga" data-k="${k}"${db.google[k] ? ' checked' : ''}> ${nome}</label>
-      <span class="muted" style="text-align:right">${status}</span></div>`;
-    return `${Google.erro ? `<div class="aviso">⚠️ ${esc(Google.erro)}</div>` : ''}
-      ${linha('agenda', '📅 Google Agenda', !db.google.agenda ? 'desligado' : GAgenda.erro ? '⚠️ ' + esc(GAgenda.erro)
-        : `${GAgenda.eventos.length} eventos · atualizado ${hora(GAgenda.carregadoEm)}`)}
-      ${linha('tasks', '✔️ Google Tasks (listas "Trabalho" e "Pessoal")', !db.google.tasks ? 'desligado' : GTarefas.erro ? '⚠️ ' + esc(GTarefas.erro)
-        : `${db.tarefas.filter(t => t.gtaskId).length} tarefas ligadas · ${hora(GTarefas.em)}`)}
-      <div class="linha"><span>📧 Gmail</span><a href="#gmail">abrir e-mails →</a></div>`;
+    const linha = (k, icone, nome, status, erro) => `<div class="linha">
+      <span style="display:flex;gap:10px;align-items:center">${ic(icone)}<span><b style="font-weight:550">${nome}</b><br>
+        <span class="${erro ? 'neg' : 'muted'}" style="font-size:12.5px">${status}</span></span></span>
+      <button class="switch ${db.google[k] ? 'on' : ''}" data-acao="googleLiga" data-k="${k}" role="switch" aria-checked="${!!db.google[k]}" aria-label="${nome}"></button></div>`;
+    return `${Google.erro ? `<div class="aviso laranja">${ic('circle-alert')} ${esc(Google.erro)}</div>` : ''}
+      ${linha('agenda', 'calendar', 'Google Agenda', !db.google.agenda ? 'Desligado' : GAgenda.erro ? esc(GAgenda.erro)
+        : `${GAgenda.eventos.length} eventos · atualizado às ${hora(GAgenda.carregadoEm)}`, !!GAgenda.erro)}
+      ${linha('tasks', 'list-checks', 'Google Tasks', !db.google.tasks ? 'Desligado' : GTarefas.erro ? esc(GTarefas.erro)
+        : `${db.tarefas.filter(t => t.gtaskId).length} tarefas nas listas Trabalho e Pessoal`, !!GTarefas.erro)}
+      <div class="linha"><span style="display:flex;gap:10px;align-items:center">${ic('mail')}<b style="font-weight:550">Gmail</b></span><a href="#gmail">Abrir e-mails</a></div>`;
   },
   acoes: {
     entrar() { Sync.entrar(); },
-    async googleAgora() { aviso('Atualizando com o Google...'); await Google.atualizar(); render(); aviso(Google.erro || 'Google atualizado ✔'); },
-    googleLiga(d, el) { db.google[d.k] = el.checked; ok(); if (el.checked) Google.atualizar(); },
+    async googleAgora() { aviso('Atualizando com o Google...'); await Google.atualizar(); render(); aviso(Google.erro || 'Google atualizado'); },
+    googleLiga(d) { db.google[d.k] = !db.google[d.k]; ok(); if (db.google[d.k]) Google.atualizar(); },
     sair() { Sync.sair(); },
     async instalar() {
       if (!App.instalar) return;
@@ -84,7 +78,7 @@ registrar({
       await App.instalar.userChoice;
       App.instalar = null; render();
     },
-    async syncAgora() { await Sync.sincronizar(); render(); aviso(Sync.estado === 'ok' ? 'Sincronizado ✔' : Sync.rotulo()[1]); },
+    async syncAgora() { await Sync.sincronizar(); render(); aviso(Sync.estado === 'ok' ? 'Sincronizado' : Sync.rotulo()[1]); },
     novaNota() { this.formNota(); },
     editarNota(d) { this.formNota(db.notas.find(n => n.id === d.id)); },
     formNota(n) {
@@ -119,14 +113,14 @@ registrar({
       try {
         const dados = JSON.parse(await arq.text());
         if (dados.financas || dados.tarefas || dados.treinos) {
-          if (!confirm('Substituir TODOS os dados atuais pelos do backup?')) return;
+          if (!await confirmar('Todos os dados atuais serão substituídos pelos do backup.', { titulo: 'Importar backup', ok: 'Substituir tudo', perigo: true })) { el.value = ''; return; }
           db = mesclar(padrao(), dados);
           aplicarTema();
         } else if (Array.isArray(dados.fixos)) {
-          if (!confirm('Este é um backup do controle de gastos. Substituir os dados de Finanças por ele?')) return;
+          if (!await confirmar('Este é um backup do controle de gastos. Os dados de Finanças serão substituídos por ele.', { titulo: 'Importar Finanças', ok: 'Substituir Finanças', perigo: true })) { el.value = ''; return; }
           db.financas = normalizarFinancas(dados);
         } else throw new Error('formato');
-        ok('Backup importado ✔');
+        ok('Backup importado');
       } catch (e) { aviso('Arquivo de backup inválido'); }
       el.value = '';
     },

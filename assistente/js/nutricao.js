@@ -91,7 +91,7 @@ const Nutricao = {
     const [campo, rotulo, unid, casas] = this.metrica_(this.metrica);
     let pts = this.validas().filter(m => m[campo] != null);
     if (this.periodo !== 'tudo') { const ini = somaDias(hoje(), -365 * Number(this.periodo)); pts = pts.filter(m => m.data >= ini); }
-    if (pts.length < 2) return '<div class="vazio">Poucas medições neste período para desenhar a evolução.</div>';
+    if (pts.length < 2) return vazio('trending-up', 'Poucas medições neste período para desenhar a evolução.');
 
     const W = 640, H = 230, ml = 46, mr = 18, mt = 16, mb = 30;
     const ts = pts.map(p => deISO(p.data).getTime()), vs = pts.map(p => p[campo]);
@@ -179,40 +179,39 @@ registrar({
       return `<button class="card tile bio-tile${N.metrica === campo ? ' sel' : ''}" data-acao="metrica" data-k="${campo}">
         <div class="lbl">${rotulo}</div>
         <div class="val">${N.fmt(v, casas)}<small> ${unid}</small></div>
-        ${d != null ? `<div class="delta ${bom == null ? '' : bom ? 'pos' : 'neg'}">${d > 0 ? '▲' : d < 0 ? '▼' : '='} ${N.fmt(Math.abs(d), casas)} ${unid}</div>` : ''}
+        ${d != null ? `<div class="delta ${bom == null ? '' : bom ? 'pos' : 'neg'}">${d > 0 ? ic('arrow-up', 'ic-sm') : d < 0 ? ic('arrow-down', 'ic-sm') : ''} ${N.fmt(Math.abs(d), casas)} ${unid}</div>` : ''}
       </button>`;
     };
 
     const linhas = [...db.bioimpedancia].sort((a, b) => b.data.localeCompare(a.data));
-    return `<div class="topo"><h1>🥗 Nutrição</h1>
-        <button data-acao="manual">+ Medição manual</button>
-        <button class="primary" data-acao="importar">${N.importando ? '⏳ Importando...' : '📥 Importar bioimpedância'}</button></div>
+    return cabecalho('Nutrição', {
+        sub: ult ? `Última avaliação em ${fmtData(ult.data)}${ant ? `, comparada com ${fmtData(ant.data)}` : ''}` : '',
+        acoes: `<button data-acao="manual">${ic('scale')}<span class="rotulo-opc">Medição manual</span></button>
+          <button class="primary" data-acao="importar"${N.importando ? ' disabled' : ''}>${ic(N.importando ? 'refresh-cw' : 'download')}<span class="rotulo-opc">${N.importando ? 'Importando...' : 'Importar bioimpedância'}</span></button>` })
+      + `${!db.bioimpedancia.length ? `<div class="card">${vazio('activity', 'Cole o link do relatório do Galileu (b.IA) e todo o histórico de avaliações entra de uma vez.',
+        `<button class="primary" data-acao="importar">${ic('download')} Importar bioimpedância</button>`)}</div>` : `
+      <div class="tiles bio">${BIO_TILES.map(tile).join('')}</div>
 
-      ${!db.bioimpedancia.length ? `<div class="card"><h2>Bioimpedância</h2><p class="muted" style="margin:0">
-        Clique em <b>Importar bioimpedância</b> e cole o link do relatório do Galileu (b.IA). Todas as avaliações do histórico entram de uma vez.</p></div>` : `
-      <p class="muted" style="margin:-8px 0 12px;font-size:14px">Última avaliação: <b>${fmtData(ult.data)}</b>${ant ? ` · comparada com ${fmtData(ant.data)}` : ''}</p>
-      <div class="tiles">${BIO_TILES.map(tile).join('')}</div>
-
-      <section class="card"><h2>Evolução · ${esc(N.metrica_(N.metrica)[1])}<span class="sp"></span>
-          <select data-muda="periodo">${[['1', 'Último ano'], ['2', '2 anos'], ['tudo', 'Tudo']].map(([v, l]) =>
+      <section class="card"><h2>${ic('trending-up')} Evolução · ${esc(N.metrica_(N.metrica)[1])}<span class="sp"></span>
+          <select data-muda="periodo" aria-label="Período">${[['1', 'Último ano'], ['2', '2 anos'], ['tudo', 'Tudo']].map(([v, l]) =>
             `<option value="${v}"${N.periodo === v ? ' selected' : ''}>${l}</option>`).join('')}</select></h2>
         <div class="chips-metrica">${BIO_METRICAS.map(([k, l]) => `<button class="mini${N.metrica === k ? ' primary' : ''}" data-acao="metrica" data-k="${k}">${l}</button>`).join('')}</div>
         ${N.grafico()}
       </section>`}
 
-      <section class="card mt"><h2>🍽️ Plano alimentar</h2>
-        <p class="muted" style="margin:0;font-size:14px">Em breve: envie o PDF ou a foto do plano da nutricionista e o app organiza as refeições, horários e lembretes.</p>
+      <section class="card mt"><h2>${ic('utensils')} Plano alimentar</h2>
+        ${vazio('utensils', 'Em breve: envie o PDF ou a foto do plano da nutricionista e o app organiza refeições, horários e lembretes.')}
       </section>
 
-      ${linhas.length ? `<section class="card mt"><h2>Histórico <span class="chip">${val.length} válidas${descartadas ? ` · ${descartadas} descartada(s)` : ''}</span></h2>
+      ${linhas.length ? `<section class="card mt"><h2>${ic('file-text')} Histórico <span class="chip">${val.length} válidas${descartadas ? ` · ${descartadas} descartada(s)` : ''}</span></h2>
         <div class="tabela-rolagem"><table class="tabela">
           <thead><tr><th>Data</th><th>Peso</th><th>Gordura %</th><th>Gordura kg</th><th>Músculo kg</th><th>Água %</th><th>Visceral</th><th>Cintura</th><th>TMB</th><th></th></tr></thead>
           <tbody>${linhas.map(m => `<tr class="${m.descartada ? 'descartada' : ''}" title="${esc(m.motivo || '')}">
             <td>${fmtData(m.data)}${m.fonte === 'manual' ? ' <span class="chip">manual</span>' : ''}${m.descartada ? ' <span class="chip">descartada</span>' : ''}</td>
             <td>${N.fmt(m.peso)}</td><td>${N.fmt(m.gorduraPct)}</td><td>${N.fmt(m.gorduraKg)}</td><td>${N.fmt(m.massaMuscularKg)}</td>
             <td>${N.fmt(m.aguaPct)}</td><td>${N.fmt(m.gorduraVisceral)}</td><td>${N.fmt(m.cintura)}</td><td>${N.fmt(m.tmb, 0)}</td>
-            <td style="white-space:nowrap">${m.fonte === 'manual' ? `<button class="icon" data-acao="editar" data-id="${m.id}" title="Editar">✎</button>` : ''}
-              <button class="icon" data-acao="descartar" data-id="${m.id}" title="${m.descartada ? 'Voltar a considerar' : 'Descartar esta medição'}">${m.descartada ? '↺' : '⊘'}</button></td>
+            <td style="white-space:nowrap">${m.fonte === 'manual' ? bi('editar', 'pencil', 'Editar', `data-id="${m.id}"`) : ''}
+              ${bi('descartar', m.descartada ? 'rotate-ccw' : 'eye-off', m.descartada ? 'Voltar a considerar' : 'Descartar esta medição', `data-id="${m.id}"`)}</td>
           </tr>`).join('')}</tbody></table></div>
       </section>` : ''}`;
   },

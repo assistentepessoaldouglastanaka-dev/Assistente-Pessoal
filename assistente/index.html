@@ -2,10 +2,11 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Assistente Pessoal</title>
 <meta name="description" content="Tarefas, agenda, gastos, trajetos, treinos e alarmes em um só lugar.">
-<meta name="theme-color" content="#2f6fed">
+<meta name="theme-color" content="#f3f5f9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1218" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icons/favicon.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -14,15 +15,22 @@
 </head>
 <body>
 <div class="app">
-  <nav id="nav"></nav>
-  <main id="conteudo"></main>
+  <aside id="lateral" aria-label="Menu"></aside>
+  <div class="principal">
+    <header id="barra"></header>
+    <main id="conteudo"></main>
+  </div>
+  <nav id="abas" aria-label="Navegação"></nav>
+  <button id="fab" data-acao="app:novo" aria-label="Adicionar"></button>
 </div>
 
 <dialog id="modal"></dialog>
+<dialog id="folha"></dialog>
+<dialog id="confirma" class="pequeno"></dialog>
 
-<div id="alarme" hidden>
+<div id="alarme" hidden role="alertdialog" aria-labelledby="alarmeTitulo">
   <div class="alarme-box">
-    <div class="alarme-ic">⏰</div>
+    <div class="alarme-ic"></div>
     <h2 id="alarmeTitulo"></h2>
     <p id="alarmeTexto"></p>
     <div class="alarme-acoes">
@@ -32,10 +40,11 @@
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js"></script>
+<script src="js/icones.js"></script>
 <script src="js/core.js"></script>
 <script src="js/sync.js"></script>
 <script src="js/inicio.js"></script>

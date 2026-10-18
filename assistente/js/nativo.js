@@ -16,7 +16,8 @@ const Nativo = {
     try { await StatusBar.setBackgroundColor({ color: '#2f6fed' }); } catch (e) {}
     A.addListener('appUrlOpen', ({ url }) => this.voltaLogin(url));
     A.addListener('backButton', () => {
-      if ($('#modal').open) $('#modal').close();
+      const aberto = document.querySelector('dialog[open]');
+      if (aberto) { const b = aberto.querySelector('[data-r=nao], [data-m=cancelar], [data-f=fechar]'); b ? b.click() : aberto.close(); }
       else if (!$('#alarme').hidden) Alarmes.dispensar(false);
       else if (atual !== 'inicio') history.back();
       else A.minimizeApp();
@@ -133,6 +134,6 @@ const Nativo = {
     if (erro) return aviso('Login não concluído: ' + erro);
     if (!code) return;
     const { error } = await Sync.sb.auth.exchangeCodeForSession(code);
-    aviso(error ? 'Erro ao entrar: ' + error.message : 'Conectado ✔');
+    aviso(error ? 'Erro ao entrar: ' + error.message : 'Conectado');
   },
 };

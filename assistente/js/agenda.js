@@ -32,14 +32,19 @@ const Agenda = {
   },
   itemHTML(ev) {
     const saida = this.horaSaida(ev), r = this.rota(ev);
+    const repete = (ev.repetir && ev.repetir !== 'nao') || ev.serie;
+    const temAlerta = ev.alerta !== '' && ev.alerta != null;
+    const link = (href, icone, rotulo) => `<a class="btn icon" href="${esc(href)}" target="_blank" rel="noopener" title="${rotulo}" aria-label="${rotulo}">${ic(icone)}</a>`;
     return `<li class="ev ev-${ev.tipo || 'pessoal'}">
       <div class="hora">${ev.inicio ? ev.inicio + (ev.fim ? `<small>${ev.fim}</small>` : '') : '<small>dia todo</small>'}</div>
-      <div class="info"><div class="nome">${esc(ev.titulo)}${(ev.repetir && ev.repetir !== 'nao') || ev.serie ? ' <span title="Repete">🔁</span>' : ''}${ev.alerta !== '' && ev.alerta != null ? ' <span title="Com alerta">🔔</span>' : ''}</div>
-        <div class="sub">${ev.local ? '📍 ' + esc(ev.local) : ''}${saida ? ` · 🚗 sair às <b>${saida}</b>` : ''}</div></div>
-      ${r ? `<a class="btn mini" href="${Trajetos.linkMaps(r)}" target="_blank" rel="noopener">Rota</a>`
-        : ev.local ? `<a class="btn mini" href="${Trajetos.linkBusca(ev.local)}" target="_blank" rel="noopener">Mapa</a>` : ''}
-      ${ev.meet ? `<a class="btn mini" href="${esc(ev.meet)}" target="_blank" rel="noopener">Meet</a>` : ''}
-      <button class="icon" data-acao="agenda:editar" data-id="${ev.id}" title="Editar">✎</button></li>`;
+      <div class="info" data-acao="agenda:editar" data-id="${ev.id}" style="cursor:pointer">
+        <div class="nome">${esc(ev.titulo)}</div>
+        <div class="sub">${ev.local ? `<span>${ic('map-pin', 'ic-sm')} ${esc(ev.local)}</span>` : ''}
+          ${saida ? `<span class="ehoje">${ic('car', 'ic-sm')} sair às ${saida}</span>` : ''}
+          ${repete ? `<span title="Repete">${ic('repeat', 'ic-sm')}</span>` : ''}${temAlerta ? `<span title="Lembrete ${ev.alerta} min antes">${ic('bell', 'ic-sm')}</span>` : ''}</div></div>
+      ${ev.meet ? link(ev.meet, 'video', 'Entrar no Meet') : ''}
+      ${r ? link(Trajetos.linkMaps(r), 'navigation', 'Abrir rota no Maps') : ev.local ? link(Trajetos.linkBusca(ev.local), 'map', 'Ver no mapa') : ''}
+    </li>`;
   },
   campos(valores = {}, comPersonalizada = false) {
     return [
@@ -58,7 +63,7 @@ const Agenda = {
     ];
   },
   validar(v) {
-    if (v.fim && v.inicio && v.fim < v.inicio) { alert('O fim precisa ser depois do início.'); return false; }
+    if (v.fim && v.inicio && v.fim < v.inicio) { aviso('O fim precisa ser depois do início.'); return false; }
   },
   // Conectado ao Google, eventos novos vão para o Google Agenda; sem conexão, ficam só no app
   form(ev, valores = {}) {
@@ -93,30 +98,33 @@ registrar({
     let proximos = '';
     for (let i = 1; i <= 7; i++) {
       const iso = somaDias(h, i), l = A.eventosDoDia(iso);
-      if (l.length) proximos += `<div class="sub muted" style="margin-top:10px;font-weight:600">${rotuloDia(iso)}</div><ul class="lista">${l.map(e => A.itemHTML(e)).join('')}</ul>`;
+      if (l.length) proximos += `<div class="dia-titulo">${rotuloDia(iso)}</div><ul class="lista">${l.map(e => A.itemHTML(e)).join('')}</ul>`;
     }
 
     const g = GAgenda.ativa();
-    return `<div class="topo"><h1>📅 Agenda</h1>
-        ${g ? `<span class="chip" title="${esc(GAgenda.erro || 'Sincronizado com o Google Agenda')}">${GAgenda.erro ? '⚠️' : '🔗'} Google Agenda</span>` : ''}
-        ${g && db.eventos.length ? `<button data-acao="enviarGoogle">Enviar ${db.eventos.length} evento(s) do app ao Google</button>` : ''}
-        <button class="primary" data-acao="novo">+ Novo evento</button></div>
-      ${g && GAgenda.erro ? `<div class="aviso">⚠️ ${esc(GAgenda.erro)}</div>` : ''}
+    return cabecalho('Agenda', {
+        sub: g ? (GAgenda.erro ? `${ic('circle-alert', 'ic-sm')} Google Agenda com erro` : `${ic('link', 'ic-sm')} Sincronizada com o Google Agenda`) : '',
+        acoes: `${g && db.eventos.length ? `<button data-acao="enviarGoogle">${ic('upload')}<span class="rotulo-opc">Enviar ${db.eventos.length} evento(s) ao Google</span></button>` : ''}
+          <button class="primary" data-acao="novo">${ic('plus')}<span class="rotulo-opc">Novo evento</span></button>` })
+      + `${g && GAgenda.erro ? `<div class="aviso laranja">${ic('circle-alert')} ${esc(GAgenda.erro)}</div>` : ''}
       <div class="grid2">
         <section class="card">
-          <div class="cal-topo"><button data-acao="mesAnt">◀</button><strong>${nomeMes(A.mes)}</strong>
-            <button data-acao="mesProx">▶</button><button data-acao="irHoje">Hoje</button></div>
+          <div class="cal-topo">
+            <strong>${nomeMes(A.mes)}</strong>
+            ${A.mes !== chaveMes(new Date()) || A.sel !== h ? `<button class="mini" data-acao="irHoje">Hoje</button>` : ''}
+            ${bi('mesAnt', 'chevron-left', 'Mês anterior')}${bi('mesProx', 'chevron-right', 'Próximo mês')}
+          </div>
           <div class="cal">${cells}</div>
-          <p class="muted" style="font-size:12px;margin:10px 0 0">● eventos &nbsp; <span style="color:var(--warn)">●</span> prazo de tarefa</p>
+          <div class="legenda"><span><i class="dot" style="background:var(--accent)"></i> Eventos</span><span><i class="dot" style="background:var(--warn)"></i> Prazo de tarefa</span></div>
         </section>
         <section class="card">
           <h2>${A.sel === h ? 'Hoje' : rotuloDia(A.sel)} <span class="muted" style="font-weight:400">${fmtData(A.sel)}</span><span class="sp"></span>
-            <button class="mini" data-acao="novo">+ Evento</button></h2>
-          <ul class="lista">${evs.map(e => A.itemHTML(e)).join('') || '<div class="vazio">Nenhum evento neste dia.</div>'}</ul>
-          ${tarefasDia.length ? `<h2 class="mt">Tarefas com prazo</h2><ul class="lista">${tarefasDia.map(t => `<li>
+            ${bi('novo', 'plus', 'Novo evento neste dia')}</h2>
+          ${evs.length ? `<ul class="lista">${evs.map(e => A.itemHTML(e)).join('')}</ul>` : vazio('calendar', 'Nenhum evento neste dia.')}
+          ${tarefasDia.length ? `<div class="dia-titulo">Tarefas com prazo</div><ul class="lista">${tarefasDia.map(t => `<li>
             <span class="dot p-${t.prioridade || 'media'}"></span><div class="info"><div class="nome">${esc(t.titulo)}</div>
-            <div class="sub">${t.area === 'trabalho' ? '💼 Trabalho' : '✅ Pessoal'}${t.projeto ? ' · ' + esc(t.projeto) : ''}</div></div></li>`).join('')}</ul>` : ''}
-          <h2 class="mt">Próximos 7 dias</h2>${proximos || '<div class="vazio">Nada agendado.</div>'}
+            <div class="sub">${ic(t.area === 'trabalho' ? 'briefcase' : 'list-checks', 'ic-sm')} ${t.area === 'trabalho' ? 'Trabalho' : 'Pessoal'}${t.projeto ? ' · ' + esc(t.projeto) : ''}</div></div></li>`).join('')}</ul>` : ''}
+          <h2 class="mt" style="margin-bottom:0">Próximos 7 dias</h2>${proximos || vazio('calendar-days', 'Nada agendado para a próxima semana.')}
         </section>
       </div>`;
   },
