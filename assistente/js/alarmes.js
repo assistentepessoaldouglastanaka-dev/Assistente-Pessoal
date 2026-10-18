@@ -89,6 +89,7 @@ const Alarmes = {
     this.parar(); this.mostrar();
   },
   async notificar(titulo, texto) {
+    if (Nativo.ativo) return; // já agendado como notificação do Android
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
     const opcoes = { body: texto, requireInteraction: true, icon: 'icons/icone-192.png', badge: 'icons/icone-192.png', vibrate: [300, 150, 300], tag: titulo };
     try {
@@ -155,9 +156,12 @@ registrar({
     const lemb = A.lembretesDoDia(hoje()), agora = hhmm(agoraMin());
     return `<div class="topo"><h1>⏰ Alarmes</h1><button data-acao="testar">🔊 Testar som</button>
         <button class="primary" data-acao="novo">+ Novo alarme</button></div>
+      ${Nativo.ativo ? `<div class="aviso">📱 No app Android, alarmes e lembretes tocam mesmo com o app fechado
+          (${Nativo.agendados} agendados para os próximos 7 dias).
+          ${Nativo.permissao !== 'granted' || Nativo.exato !== 'granted' ? '<button class="mini primary" data-acao="permitirNativo">Permitir notificações e alarmes</button>' : ''}</div>` : `
       <div class="aviso">ℹ️ Os alarmes tocam enquanto este app estiver aberto em uma aba do navegador (pode ficar minimizada).
         ${perm === 'default' ? '<button class="mini primary" data-acao="permitir">Ativar notificações</button>' : ''}
-        ${perm === 'denied' ? '<b>Notificações bloqueadas no navegador — o alarme toca só dentro do app.</b>' : ''}</div>
+        ${perm === 'denied' ? '<b>Notificações bloqueadas no navegador — o alarme toca só dentro do app.</b>' : ''}</div>`}
       <div class="grid2">
         <section class="card"><h2>Meus alarmes</h2>
           ${lista.map(a => `<div class="al ${a.ativo ? '' : 'off'}">
@@ -185,6 +189,7 @@ registrar({
       ok(a.ativo ? 'Alarme ligado' : 'Alarme desligado');
     },
     testar() { Alarmes.bip(); },
+    permitirNativo() { Nativo.pedirPermissoes(); },
     async permitir() { await Notification.requestPermission(); render(); },
   },
 });
