@@ -1,0 +1,15 @@
+# Backups com dados pessoais — nunca versionar
+*.json
+!.claude/launch.json
+!assistente/**/*.json
+controle-de-gastos.html
+
+# Claude Code (local)
+.claude/settings.local.json
+
+# Supabase CLI / Node
+supabase/.temp/
+supabase/.branches/
+node_modules/
+.env
+.env.*
