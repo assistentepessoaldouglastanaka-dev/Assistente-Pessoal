@@ -10,7 +10,7 @@ const Nativo = {
   timer: null, assinatura: '', agendados: 0, permissao: null, exato: null,
   // O app Android abre o site da Vercel: os plugins nativos precisam ser registrados pelo nome
   // (a biblioteca @capacitor/core, em js/vendor, cria a ponte para o código nativo de cada um)
-  PLUGINS: ['App', 'LocalNotifications', 'Browser', 'StatusBar', 'SpeechRecognition', 'TextToSpeech', 'Preferences'],
+  PLUGINS: ['App', 'LocalNotifications', 'Browser', 'StatusBar', 'SpeechRecognition', 'TextToSpeech', 'Preferences', 'Sistema'],
   _p: null,
   get P() {
     if (this._p) return this._p;
