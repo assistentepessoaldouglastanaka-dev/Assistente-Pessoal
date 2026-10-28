@@ -71,10 +71,11 @@ const Sync = {
       alarmes: db.alarmes, notas: db.notas,
       fixos: db.financas.fixos, variaveis: db.financas.variaveis, dividas: db.financas.dividas,
       treinos_modelos: db.treinos.modelos, treinos_sessoes: db.treinos.sessoes, bioimpedancia: db.bioimpedancia,
+      planos: db.planos, compras: db.compras,
     };
   },
   unicos() {
-    return { config: db.config, renda: db.financas.renda, treinos_semana: db.treinos.semana, treinos_atual: db.treinos.atual, google: db.google };
+    return { config: db.config, renda: db.financas.renda, treinos_semana: db.treinos.semana, treinos_atual: db.treinos.atual, google: db.google, mercado: db.mercado };
   },
   definirUnico(nome, v) {
     const trocar = (alvo, novo) => { for (const k of Object.keys(alvo)) delete alvo[k]; Object.assign(alvo, novo || {}); };
@@ -82,6 +83,7 @@ const Sync = {
     else if (nome === 'renda') trocar(db.financas.renda, v);
     else if (nome === 'treinos_semana') trocar(db.treinos.semana, v);
     else if (nome === 'treinos_atual') db.treinos.atual = v ?? null;
+    else if (nome === 'mercado') { trocar(db.mercado, v); mesclar(padrao().mercado, db.mercado); }
     else if (nome === 'google') { trocar(db.google, v); mesclar(padrao().google, db.google); }
   },
   estadoLocal() {

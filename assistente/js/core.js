@@ -119,6 +119,11 @@ function padrao() {
     notas: [],
     // medições de bioimpedância (Nutrição)
     bioimpedancia: [],
+    // plano alimentar da nutricionista: { id, titulo, data, ativo, refeicoes: [{ nome, horario, itens: [...], opcoes }], orientacoes, texto }
+    planos: [],
+    // lista de mercado (js/mercado.js)
+    compras: [],
+    mercado: { dias: 7, precos: {}, historico: [] },
     // integração com o Google (sincronizada entre aparelhos)
     google: { agenda: true, tasks: true, listas: {}, tasksCursor: {}, tasksMapa: {}, gmailUsados: [] },
   };
@@ -168,9 +173,9 @@ let atual = 'inicio';
 let ultimaTarefas = 'pessoal';
 
 const NAV = {
-  icone: { inicio: 'house', agenda: 'calendar', trabalho: 'briefcase', pessoal: 'list-checks', financas: 'wallet', nutricao: 'salad',
+  icone: { inicio: 'house', agenda: 'calendar', trabalho: 'briefcase', pessoal: 'list-checks', financas: 'wallet', mercado: 'shopping-cart', nutricao: 'salad',
     treinos: 'dumbbell', trajetos: 'route', alarmes: 'alarm-clock', gmail: 'mail', geral: 'settings' },
-  grupos: [['Dia a dia', ['inicio', 'agenda', 'trabalho', 'pessoal']], ['Dinheiro e saúde', ['financas', 'nutricao', 'treinos']],
+  grupos: [['Dia a dia', ['inicio', 'agenda', 'trabalho', 'pessoal']], ['Dinheiro e saúde', ['financas', 'mercado', 'nutricao', 'treinos']],
     ['Ferramentas', ['trajetos', 'alarmes', 'gmail']]],
   abas: [['inicio', 'Início', 'house'], ['agenda', 'Agenda', 'calendar'], ['tarefas', 'Tarefas', 'list-checks'], ['financas', 'Finanças', 'wallet'], ['mais', 'Mais', 'layout-grid']],
 };

@@ -142,7 +142,7 @@ main { padding: 26px 32px 80px; max-width: 1200px; width: 100%; margin: 0 auto; 
 .topo .topo-a { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 @media (max-width: 899px) {
   .topo { margin-bottom: 14px; align-items: center; }
-  .topo .topo-t { min-width: max-content; }
+  .topo .topo-t { min-width: min(max-content, 100%); }
   .so-desktop { display: none !important; }
   .topo .topo-a .rotulo-opc { display: none; }  /* no celular, alguns botões ficam só com o ícone */
 }
@@ -598,3 +598,11 @@ body.jv-aberto { overflow: hidden; }
 .resumo a { min-width: 0; }
 .resumo b { overflow-wrap: anywhere; }
 @media (max-width: 899px) { [data-theme="jarvis"] .resumo b { font-size: 13.5px; letter-spacing: .01em; } [data-theme="jarvis"] .resumo span { font-size: 12px; } }
+
+/* Plano alimentar */
+.refeicoes { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+.refeicao { border: 1px solid var(--line); border-radius: var(--r-sm); padding: 10px 12px; background: var(--card-2); }
+.refeicao .ref-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.refeicao ul { margin: 0 0 6px; padding-left: 18px; font-size: 13.5px; }
+.refeicao li { margin: 2px 0; }
+.orientacoes { margin: 0; padding-left: 18px; font-size: 13.5px; color: var(--muted); }
