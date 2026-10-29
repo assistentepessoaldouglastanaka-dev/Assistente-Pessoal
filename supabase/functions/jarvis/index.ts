@@ -50,12 +50,21 @@ Para cada item recebido, dê o preço em reais por unidade indicada: "kg" = por 
 Responda APENAS com JSON: {"precos": [{"nome": string, "preco": number}]}, na mesma ordem e com os mesmos nomes.`;
 
 // Chama o modelo da Cloudflare e devolve o JSON da resposta (ou texto solto em { resposta })
-async function rodar(conta: string, token: string, messages: unknown[], max_tokens: number, temperature: number) {
-  const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${conta}/ai/run/${MODELO}`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages, max_tokens, temperature }),
-  });
+async function rodar(conta: string, token: string, messages: unknown[], max_tokens: number, temperature: number):
+  // deno-lint-ignore no-explicit-any
+  Promise<{ erro?: string; detalhe?: string; status?: number; saida?: any; quebrado?: boolean }> {
+  let r: Response;
+  try {
+    r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${conta}/ai/run/${MODELO}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages, max_tokens, temperature }),
+      signal: AbortSignal.timeout(110_000),
+    });
+  } catch (e) {
+    const tempo = (e as Error)?.name === 'TimeoutError';
+    return { erro: tempo ? 'tempo' : 'ia', detalhe: tempo ? 'a IA demorou demais' : String((e as Error)?.message ?? e), status: tempo ? 504 : 502 };
+  }
   const dados = await r.json().catch(() => null);
   if (!r.ok || !dados?.success) {
     const cota = JSON.stringify(dados ?? '').match(/neuron|quota|limit/i);
@@ -70,7 +79,11 @@ async function rodar(conta: string, token: string, messages: unknown[], max_toke
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
+  try { return await atender(req); }
+  catch (e) { console.error(e); return json({ erro: 'interno', detalhe: String((e as Error)?.message ?? e).slice(0, 200) }, 500); }
+});
 
+async function atender(req: Request): Promise<Response> {
   // Só usuários logados no app
   const jwt = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
@@ -86,9 +99,12 @@ Deno.serve(async (req) => {
   if (corpo.modo === 'plano') {
     const texto = String(corpo.texto ?? '').trim();
     if (texto.length < 30) return json({ erro: 'sem_texto' }, 400);
-    const r = await rodar(conta, token, [{ role: 'system', content: PLANO }, { role: 'user', content: texto.slice(0, 14000) }], 4000, 0.1);
-    if (r.erro) return json({ erro: r.erro, detalhe: r.detalhe }, r.status);
-    if (!Array.isArray(r.saida?.refeicoes)) return json({ erro: 'nao_entendi' }, 422);
+    const r = await rodar(conta, token, [{ role: 'system', content: PLANO }, { role: 'user', content: texto.slice(0, 12000) }], 3500, 0.1);
+    if (r.erro) { console.error('plano:', r.erro, r.detalhe); return json({ erro: r.erro, detalhe: r.detalhe }, r.status); }
+    if (!Array.isArray(r.saida?.refeicoes)) {
+      console.error('plano sem refeicoes:', r.quebrado ? 'JSON incompleto' : JSON.stringify(r.saida).slice(0, 300));
+      return json({ erro: 'nao_entendi', detalhe: r.quebrado ? 'resposta incompleta da IA' : 'sem refeições' }, 422);
+    }
     return json({ plano: r.saida });
   }
   if (corpo.modo === 'precos') {
@@ -117,4 +133,4 @@ Deno.serve(async (req) => {
   if (r.erro) return json({ erro: r.erro, detalhe: r.detalhe }, r.status);
   const saida: { resposta?: string; acao?: unknown } = r.saida ?? {};
   return json({ resposta: String(saida.resposta ?? '').slice(0, 600), acao: saida.acao ?? null });
-});
+}

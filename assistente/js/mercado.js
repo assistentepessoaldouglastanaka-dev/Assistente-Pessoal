@@ -153,11 +153,15 @@ const Mercado = {
 
 function semAcentoM(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, ''); }
 async function motivoErro(error) {
-  let m = '';
-  try { m = (await error.context.json()).erro; } catch (e) {}
-  return { nao_configurado: 'A IA gratuita (Cloudflare) ainda não foi configurada no Supabase.', cota: 'Limite gratuito da IA atingido hoje. Tente amanhã.',
-    nao_autenticado: 'Entre com sua conta Google primeiro.', nao_entendi: 'Não consegui entender o plano. Tente colar o texto.',
-    sem_texto: 'O arquivo não tem texto legível. Se for foto ou PDF escaneado, copie o texto e cole.' }[m] || 'Não foi possível agora. Tente de novo.';
+  // mostra o motivo real que a função devolveu (ajuda a diagnosticar)
+  let m = '', detalhe = '', status = error?.context?.status;
+  try { const j = await error.context.json(); m = j.erro; detalhe = j.detalhe || ''; } catch (e) {}
+  const conhecido = { nao_configurado: 'A IA gratuita (Cloudflare) ainda não foi configurada no Supabase.', cota: 'Limite gratuito da IA atingido hoje. Tente amanhã.',
+    nao_autenticado: 'Entre com sua conta Google primeiro.', nao_entendi: 'A IA não conseguiu organizar o plano. Tente colar só a parte das refeições.',
+    sem_texto: 'O arquivo não tem texto legível. Se for foto ou PDF escaneado, copie o texto e cole.', tempo: 'A IA demorou demais. Tente colar só a parte das refeições.',
+    ia: 'A IA da Cloudflare recusou o pedido', interno: 'Erro dentro da função' }[m];
+  if (conhecido) return conhecido + (detalhe && ['ia', 'interno', 'nao_entendi'].includes(m) ? ` (${detalhe})` : '');
+  return `Não foi possível agora (${m || (status ? 'HTTP ' + status : error?.message || 'sem resposta')}). Tente de novo.`;
 }
 
 registrar({
