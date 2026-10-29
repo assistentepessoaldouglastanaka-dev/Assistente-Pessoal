@@ -1,11 +1,11 @@
 // Service worker: permite abrir o app sem internet e mostrar notificações no celular.
 // Arquivos do app: rede primeiro (sempre a versão nova quando online), cache como reserva offline.
 // Bibliotecas externas (CDN): cache primeiro. APIs (Supabase, Google): nunca passam pelo cache.
-const VERSAO = 'assistente-v11';
+const VERSAO = 'assistente-v12';
 const ARQUIVOS = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
   'js/vendor/capacitor-core.js', 'js/config.js', 'js/icones.js', 'js/core.js', 'js/sync.js', 'js/inicio.js', 'js/tarefas.js', 'js/financas.js', 'js/agenda.js',
-  'js/trajetos.js', 'js/treinos.js', 'js/nutricao.js', 'js/alarmes.js', 'js/google.js', 'js/nativo.js', 'js/jarvis.js', 'js/geral.js', 'js/main.js',
+  'js/trajetos.js', 'js/treinos.js', 'js/nutricao.js', 'js/mercado.js', 'js/alarmes.js', 'js/google.js', 'js/nativo.js', 'js/jarvis.js', 'js/geral.js', 'js/main.js',
   'icons/icone-192.png', 'icons/favicon.png',
 ];
 const CDN = 'https://cdn.jsdelivr.net/';

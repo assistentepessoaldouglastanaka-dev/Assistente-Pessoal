@@ -489,9 +489,26 @@ const Jarvis = {
     // Navegar
     if ((m = s.match(/^(abr[ae]|abrir|mostr[ae]|mostrar|va para|ir para|me leva para)\s+(?:a |o |as |os |minhas? |meus? )?([a-z-]+)/))) {
       const destinos = { inicio: 'inicio', agenda: 'agenda', tarefas: 'pessoal', trabalho: 'trabalho', pessoal: 'pessoal', financas: 'financas', gastos: 'financas',
-        treinos: 'treinos', treino: 'treinos', nutricao: 'nutricao', alarmes: 'alarmes', alarme: 'alarmes', gmail: 'gmail', 'e-mails': 'gmail', emails: 'gmail', trajetos: 'trajetos', notas: 'geral', ajustes: 'geral' };
+        treinos: 'treinos', treino: 'treinos', nutricao: 'nutricao', alarmes: 'alarmes', alarme: 'alarmes', gmail: 'gmail', 'e-mails': 'gmail', emails: 'gmail', trajetos: 'trajetos', notas: 'geral', ajustes: 'geral', mercado: 'mercado', compras: 'mercado', lista: 'mercado' };
       const id = destinos[m[2]];
       if (id) { ir(id); setTimeout(() => this.fechar(), 1400); return { texto: `Abrindo ${Modulos[id].nome}.` }; }
+    }
+
+    // Lista de mercado: "coloca café e detergente na lista do mercado", "quanto vai dar o mercado"
+    if ((m = s.match(/^(?:adiciona|coloca|poe|bota|inclui|anota|acrescenta)r?\s+(.+?)\s+na lista(?: d[eoa] (?:mercado|compras|supermercado))?$/))) {
+      const ini = m.index + m[0].indexOf(m[1]);
+      const nomes = t.slice(ini, ini + m[1].length).split(/\s*,\s*|\s+e\s+/).map(x => x.replace(/^(um|uma|o|a|os|as)\s+/, '').trim()).filter(Boolean);
+      const novos = nomes.map(n => {
+        const memo = db.mercado.precos[Mercado.chave(n)];
+        return { id: uid(), nome: n[0].toUpperCase() + n.slice(1), quantidade: 1, unidade: memo?.unidade || 'un', setor: Mercado.setorDe(n),
+          precoUnit: memo?.valor ?? null, fonte: memo?.fonte || null, comprado: false, origem: 'manual' };
+      });
+      db.compras.push(...novos); ok();
+      return { texto: `Anotado na lista do mercado: ${novos.map(x => x.nome.toLowerCase()).join(', ')}.`, desfazer: () => novos.forEach(x => remover(db.compras, x)()) };
+    }
+    if (/\b(quanto|qual)\b/.test(s) && /\b(vai dar|vou gastar|previsao|previsto|custa|fica|lista d[oe] (mercado|compras))\b/.test(s) && /\b(mercado|lista|compras?)\b/.test(s) && db.compras.length) {
+      const tt = Mercado.totais();
+      return { texto: `A lista do mercado tem ${db.compras.length} itens e deve dar cerca de ${falarValor(Math.round(tt.total))}. No mês, a previsão é de ${falarValor(Math.round(Mercado.previsaoMensal()))}${tt.semPreco ? `; ${tt.semPreco} itens ainda estão sem preço` : ''}.` };
     }
 
     // Gasto: "gastei 80 reais no mercado", "paguei 120 de luz ontem"
@@ -665,6 +682,9 @@ const Jarvis = {
     linhas.push(`Treino de hoje: ${tr.feito ? 'concluído' : tr.modelo ? tr.modelo.nome : 'descanso'}. Treinos neste mês: ${db.treinos.sessoes.filter(s => s.data.startsWith(h.slice(0, 7))).length}.`);
     const b = Nutricao.validas().slice(-2);
     if (b.length) linhas.push(`Bioimpedância: ${b.map(x => `${x.data}: peso ${x.peso}kg, gordura ${x.gorduraPct}%, músculo ${x.massaMuscularKg}kg, visceral ${x.gorduraVisceral}`).join(' | ')}.`);
+    const pl = Mercado.plano();
+    if (pl) linhas.push(`Plano alimentar (${pl.titulo}): ${pl.refeicoes.map(r => `${r.nome}${r.horario ? ' ' + r.horario : ''}: ${r.itens.map(i => i.texto || i.alimento).join(', ')}`).join(' | ').slice(0, 1500)}.`);
+    if (db.compras.length) linhas.push(`Lista de mercado: ${db.compras.length} itens, compra prevista ${Mercado.totais().total.toFixed(2)}, previsão mensal de mercado ${Mercado.previsaoMensal().toFixed(2)}. Itens: ${db.compras.map(i => i.nome).join(', ').slice(0, 600)}.`);
     linhas.push(`Alarmes: ${db.alarmes.filter(a => a.ativo).map(a => `${a.hora} ${a.rotulo || ''}`).join('; ') || 'nenhum'}.`);
     linhas.push(`Desejos: ${db.wishlist.filter(w => !w.comprado).map(w => `${w.nome}${w.preco ? ' ' + w.preco : ''}`).join('; ') || 'nenhum'}.`);
     return linhas.join('\n');

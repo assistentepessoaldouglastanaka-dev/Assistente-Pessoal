@@ -119,6 +119,11 @@ registrar({
         <div class="card tile"><div class="lbl">${ic('repeat', 'ic-sm')} Fixos</div><div class="val">${brl.format(r.tf)}</div></div>
         <div class="card tile"><div class="lbl">${ic('shopping-bag', 'ic-sm')} Variáveis</div><div class="val">${brl.format(r.tv)}</div></div>
         <div class="card tile"><div class="lbl">${ic('landmark', 'ic-sm')} Parcelas</div><div class="val">${brl.format(r.td)}</div></div>
+        ${ehMesAtual && Mercado.previsaoMensal() ? (() => {
+          const prev = Mercado.previsaoMensal(), gasto = Mercado.gastoAlimentacao(mes), falta = Math.max(0, prev - gasto);
+          return `<a class="card tile" href="#mercado"><div class="lbl">${ic('shopping-cart', 'ic-sm')} Mercado previsto</div><div class="val">${brl.format(prev)}</div>
+            <small>${brl.format(gasto)} já gasto · saldo após mercado ${brl.format(r.saldo - falta)}</small></a>`;
+        })() : ''}
       </div>
 
       <div class="grid2">
